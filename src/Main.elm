@@ -12,6 +12,32 @@ main =
     , view = view
     }
 
+{-
+Compilation Examples:
+
+a = 5 + 3
+
+Model = VTerm ( name = "a"
+              , term = Plus (CTerm (CInt 5)) (CTerm (Cint 3))
+              )
+
+
+a = True || False
+b = 5 == a
+
+Model = VTerm ( name = "b"
+              , term = Plus (CTerm (CInt 5)) (VTerm 
+                                               ( name = "a"
+                                               , term = Or (CTerm (CBool True) (CBool False))
+                                               )
+                                             )
+              )
+
+
+-}
+
+
+
 -- MODEL
 type Const = CBool Bool | CInt Int
 type alias Var = 
