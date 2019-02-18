@@ -17,7 +17,7 @@ type Const = CBool Bool | CInt Int
 type alias Var = 
   { name: String
   , term: Term }
-type Term = CTerm Const | Plus Term Term | Minus Term Term | Times Term Term | Eq Term Term | And Term Term | Or Term Term
+type Term = CTerm Const | VTerm Var | Plus Term Term | Minus Term Term | Times Term Term | Eq Term Term | And Term Term | Or Term Term
 
 type alias Model = Term
 
