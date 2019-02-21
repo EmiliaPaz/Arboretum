@@ -215,32 +215,32 @@ eval t =
       eval v.term
     
     Plus x y -> 
-      wrapInt ( tryBinFn (+) (tryInt (eval x)) (tryInt (eval x)) )
+      wrapInt ( tryBinFn (+) (tryInt (eval x)) (tryInt (eval y)) )
 
     Minus x y -> 
-      wrapInt ( tryBinFn (-) (tryInt (eval x)) (tryInt (eval x)) )
+      wrapInt ( tryBinFn (-) (tryInt (eval x)) (tryInt (eval y)) )
 
     Times x y -> 
-      wrapInt ( tryBinFn (*) (tryInt (eval x)) (tryInt (eval x)) )
+      wrapInt ( tryBinFn (*) (tryInt (eval x)) (tryInt (eval y)) )
 
     Eq x y ->
       takeOne
-        ( wrapBool ( tryBinFn (==) (tryInt (eval x)) (tryInt (eval x)) )
-        , wrapBool ( tryBinFn (==) (tryBool (eval x)) (tryBool (eval x)) )
+        ( wrapBool ( tryBinFn (==) (tryInt (eval x)) (tryInt (eval y)) )
+        , wrapBool ( tryBinFn (==) (tryBool (eval x)) (tryBool (eval y)) )
         )
 
     And x y -> 
-      wrapBool ( tryBinFn (&&) (tryBool (eval x)) (tryBool (eval x)) )
+      wrapBool ( tryBinFn (&&) (tryBool (eval x)) (tryBool (eval y)) )
     
     Or x y -> 
-      wrapBool ( tryBinFn (||) (tryBool (eval x)) (tryBool (eval x)) )
+      wrapBool ( tryBinFn (||) (tryBool (eval x)) (tryBool (eval y)) )
 
 
 type alias Model = Term
 
 init : () -> (Model, Cmd Msg)
 init _ =
-  ( Or (Eq (CTerm (CInt 3)) (CTerm (CInt 3))) (CTerm (CBool True))
+  ( Times (Plus (CTerm (CInt 5)) (CTerm (CInt 1))) (CTerm (CInt 7))
   , Cmd.none )
 
 
