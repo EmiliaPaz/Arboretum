@@ -28,10 +28,12 @@ body {
     background-color: #BEE0EE;
 }
 
-.subterm1 {
-    border-top: 2px solid green;
+.summary {
+    text-align: center;
+    font-size: 12pt;
+    margin-top: 60px;
 }
 
-.subterm2 {
-    border-top: 2px solid red;
+.summary-title {
+    font-size: 16pt;
 }

@@ -49,6 +49,8 @@ type Term = CTerm Const | VTerm Var | Plus Term Term | Minus Term Term | Times T
 -- V(alue)Type is a type that a TreeAssembly term can evaluate to
 type VType = TBool | TInt
 
+-- Val is a value that a term can evaluate to
+type Val = VBool Bool | VInt Int
 
 boolToString : Bool -> String
 boolToString b = 
@@ -91,8 +93,16 @@ typeToString : Maybe VType -> String
 typeToString t =
   case t of
     Just TBool -> "Bool"
-    Just TInt -> "Int"
-    Nothing -> "Type Error"
+    Just TInt  -> "Int"
+    Nothing    -> "Type Error"
+
+
+valToString : Maybe Val -> String
+valToString v =
+  case v of
+    Just (VBool x) -> boolToString x
+    Just (VInt x)  -> String.fromInt x
+    Nothing        -> "Undefined"
 
 
 -- returns input if input is Just VType, Nothing otherwise
@@ -113,7 +123,6 @@ filterTypes t xs =
         filterTypes t rest
       else
         Nothing
-
 
 
 filterInts = filterTypes TInt
@@ -137,12 +146,94 @@ typecheck t =
     Times x y -> filterInts (map typecheck [x, y])
 
     Eq x y ->
-      case filterInts(map typecheck [x, y]) of
-        Just TInt -> Just TBool
-        _         -> Nothing
+      if filterInts(map typecheck [x, y]) == Just TInt then
+        Just TBool
+      else if filterBools(map typecheck [x, y]) == Just TBool then
+        Just TBool
+      else
+        Nothing
     
     And x y -> filterBools (map typecheck [x, y])
     Or x y -> filterBools (map typecheck [x, y])
+
+
+tryBinFn : (a -> b -> c) -> Maybe a -> Maybe b -> Maybe c
+tryBinFn f mx my = 
+  case mx of
+    Just x ->
+      case my of
+        Just y  -> Just (f x y)
+        Nothing -> Nothing
+    
+    Nothing -> Nothing
+
+tryBool : Maybe Val -> Maybe Bool
+tryBool mx =
+  case mx of
+    Just (VBool x) -> Just x
+    _              -> Nothing
+
+tryInt : Maybe Val -> Maybe Int
+tryInt mx =
+  case mx of
+    Just (VInt x) ->  Just x
+    _              -> Nothing
+
+wrapInt : Maybe Int -> Maybe Val
+wrapInt c =
+  case c of
+    Just x  -> Just (VInt x)
+    Nothing -> Nothing
+
+wrapBool : Maybe Bool -> Maybe Val
+wrapBool c =
+  case c of
+    Just x  -> Just (VBool x)
+    Nothing -> Nothing
+
+-- an approximaton of an 'or' operation with maybe
+takeOne : (Maybe a, Maybe a) -> Maybe a
+takeOne (mx, my) =
+  case mx of
+    Just x  -> Just x
+    Nothing ->
+      case my of
+        Just y ->  Just y
+        Nothing -> Nothing
+
+
+-- evaluates a term
+eval : Term -> Maybe Val
+eval t =
+  case t of
+    CTerm c ->
+      case c of
+        CInt x  -> Just (VInt x)
+        CBool x -> Just (VBool x)
+    
+    VTerm v ->
+      eval v.term
+    
+    Plus x y -> 
+      wrapInt ( tryBinFn (+) (tryInt (eval x)) (tryInt (eval x)) )
+
+    Minus x y -> 
+      wrapInt ( tryBinFn (-) (tryInt (eval x)) (tryInt (eval x)) )
+
+    Times x y -> 
+      wrapInt ( tryBinFn (*) (tryInt (eval x)) (tryInt (eval x)) )
+
+    Eq x y ->
+      takeOne
+        ( wrapBool ( tryBinFn (==) (tryInt (eval x)) (tryInt (eval x)) )
+        , wrapBool ( tryBinFn (==) (tryBool (eval x)) (tryBool (eval x)) )
+        )
+
+    And x y -> 
+      wrapBool ( tryBinFn (&&) (tryBool (eval x)) (tryBool (eval x)) )
+    
+    Or x y -> 
+      wrapBool ( tryBinFn (||) (tryBool (eval x)) (tryBool (eval x)) )
 
 
 type alias Model = Term
@@ -176,8 +267,16 @@ view model =
     -- this is the workaround:
     [  Html.node "link" [ Html.Attributes.rel "stylesheet", Html.Attributes.href "trees.css" ] []
     , div [ class "tree-container" ] [ div [] [ renderTree model ] ]
+    , renderSummary model
     ]
   }
+
+renderSummary : Model -> Html Msg
+renderSummary model =
+  div [ class "summary" ]
+  [ h1 [ class "summary-title" ] [ text "Summary:" ]
+  , text ( "Evaluation result: " ++ valToString (eval model) )
+  ]
 
 renderTree : Term -> Html Msg
 renderTree t =
