@@ -40,6 +40,7 @@ Model = VTerm ( name = "b"
 
 
 -- MODEL
+
 type Const = CBool Bool | CInt Int
 type Term = CTerm Const | VTerm String | Plus Term Term | Minus Term Term | Times Term Term | Eq Term Term | And Term Term | Or Term Term
 
@@ -49,6 +50,7 @@ type VType = TBool | TInt
 -- Val is a value that a term can evaluate to
 type Val = VBool Bool | VInt Int
 
+<<<<<<< HEAD
 type alias Var = 
   { name: String
   , term: Term }
@@ -66,6 +68,8 @@ findInEnv e s =
         Just v.term
       else findInEnv vs s
 
+=======
+>>>>>>> rendering
 
 boolToString : Bool -> String
 boolToString b = 
@@ -259,20 +263,66 @@ eval e t =
       wrapBool ( tryBinFn (||) (tryBool (evale x)) (tryBool (evale y)) )
 
 
-type alias Model = Term
+-- Render tree represents drawing state
+type alias RenderTree = 
+  { render: Bool
+  , renderDepth: Int
+  , term: Term
+  , children: RenderChildren}
+type RenderChildren = RenderChildren (List RenderTree)
+
+
+genRenderTree : Int -> Term -> RenderTree
+genRenderTree depth t =
+  let
+    dnew = depth - 1
+    c =
+      case t of
+        CTerm _   -> RenderChildren []
+        VTerm x   -> RenderChildren [genRenderTree dnew x.term]
+        Plus x y  -> RenderChildren [genRenderTree dnew x, genRenderTree dnew y]
+        Minus x y -> RenderChildren [genRenderTree dnew x, genRenderTree dnew y]
+        Times x y -> RenderChildren [genRenderTree dnew x, genRenderTree dnew y]
+        Eq x y    -> RenderChildren [genRenderTree dnew x, genRenderTree dnew y]
+        And x y   -> RenderChildren [genRenderTree dnew x, genRenderTree dnew y]
+        Or x y    -> RenderChildren [genRenderTree dnew x, genRenderTree dnew y]
+
+  in
+  { render = True
+  , renderDepth = depth
+  , term = t
+  , children = c}
+
+
+type alias Model =
+  { term: Term
+  , renderTree : RenderTree }
+
+testTerm = And (Eq (Times (Plus (CTerm (CInt 5)) (CTerm (CInt 1))) (CTerm (CInt 7))) (Times (CTerm (CInt 21)) (CTerm (CInt 2)))) (CTerm (CBool True))
+failTerm = Or (Eq (CTerm (CInt 1)) (CTerm (CBool True))) (CTerm (CBool False))
+testDepth = 3
 
 init : () -> (Model, Cmd Msg)
 init _ =
-  ( Times (Plus (CTerm (CInt 5)) (CTerm (CInt 1))) (CTerm (CInt 7))
+  ( { term = failTerm
+    , renderTree = genRenderTree testDepth failTerm }
   , Cmd.none )
 
 
 -- UPDATE
-type Msg = None
+type Msg = IncDepth | DecDepth
 
 
 update : Msg -> Model -> (Model, Cmd Msg)
-update msg model = (model, Cmd.none)
+update msg model = 
+  let
+    newDepth =
+      case msg of
+        IncDepth -> model.renderTree.renderDepth + 1
+        DecDepth -> model.renderTree.renderDepth - 1
+  in
+  ( { model | renderTree = genRenderTree newDepth model.term }
+  , Cmd.none)
 
 
 -- SUBSCRIPTIONS
@@ -289,8 +339,16 @@ view model =
     -- This line is a deplorable hack!  Elm doesn't offer any way to use css with reactor, so
     -- this is the workaround:
     [  Html.node "link" [ Html.Attributes.rel "stylesheet", Html.Attributes.href "trees.css" ] []
-    , div [ class "tree-container" ] [ div [] [ renderTree model ] ]
-    , renderSummary model
+    , div [ class "flex-container" ]
+      [ div [ class "tree-container" ] [ div [] [ renderTree model.renderTree ] ]
+      , div [ class "ui-div" ]
+        [ renderSummary model
+        , div [ class "buttons" ]
+          [ button [ onClick DecDepth ] [ text "-" ]
+          , text ( String.fromInt model.renderTree.renderDepth )
+          , button [ onClick IncDepth ] [ text "+" ] ]
+        ]
+      ]
     ]
   }
 
@@ -298,61 +356,21 @@ renderSummary : Model -> Html Msg
 renderSummary model =
   div [ class "summary" ]
   [ h1 [ class "summary-title" ] [ text "Summary:" ]
-  , text ( "Evaluation result: " ++ valToString (eval model) )
+  , text ( "Evaluation result: " ++ valToString (eval model.term) )
   ]
 
-renderTree : Term -> Html Msg
+
+renderTree : RenderTree -> Html Msg
 renderTree t =
-  case t of
-    CTerm x ->
-      div [ class "tree-div" ] [ renderTerm t ]
-    
-    VTerm x ->
-      div [ class "tree-div" ]
-      [ renderTree x.term
-      , renderTerm t ]
+  if t.render && t.renderDepth > 0 then
+    div [ class "tree-div" ] ( renderChildren t.children ++ [ renderTerm t.term ] )
+  else
+    div [] []
 
-    Plus x y ->
-      div [class "tree-div"]
-      [ renderTree x
-      , renderTree y
-      , renderTerm t 
-      ] 
 
-    Minus x y ->
-      div [class "tree-div"]
-      [ renderTree x
-      , renderTree y
-      , renderTerm t 
-      ] 
-
-    Times x y ->
-      div [class "tree-div"]
-      [ renderTree x
-      , renderTree y
-      , renderTerm t 
-      ] 
-
-    Eq x y ->
-      div [class "tree-div"]
-      [ renderTree x
-      , renderTree y
-      , renderTerm t 
-      ] 
-    
-    And x y ->
-      div [class "tree-div"]
-      [ renderTree x
-      , renderTree y
-      , renderTerm t 
-      ] 
-
-    Or x y ->
-      div [class "tree-div"]
-      [ renderTree x
-      , renderTree y
-      , renderTerm t 
-      ] 
+renderChildren : RenderChildren -> List (Html Msg)
+renderChildren (RenderChildren c) =
+  map renderTree c
 
 
 renderTerm : Term -> Html Msg
