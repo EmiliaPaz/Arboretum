@@ -1,13 +1,36 @@
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
 body {
     font-family: Consolas,monaco,monospace;
     font-size: 16pt;
+    color: #000F1C;
+}
+
+.flex-container {
+    min-height: 100%;
 }
 
 .tree-container {
+    position: absolute;
+    bottom: 60%;
+    width: 65%;
     text-align: center;
 }
-.button-container {
+
+.ui-div {
+    position: absolute;
+    left: 65%;
+    width: 30%;
+    min-height: 100%;
     text-align: center;
+    border-left:2px solid #000F1C;
+}
+
+.button-container {
     margin-top: 50px;
 }
 
@@ -20,7 +43,7 @@ body {
 
 .text-div {
     clear: left;
-    border-top: 2px solid black;
+    border-top: 2px solid #000F1C;
     padding-top: 5px;
 }
 
@@ -29,11 +52,16 @@ body {
 }
 
 .summary {
-    text-align: center;
     font-size: 12pt;
     margin-top: 60px;
 }
 
 .summary-title {
     font-size: 16pt;
+}
+
+.buttons {
+    text-align: center;
+    font-size: 12pt;
+    margin-top: 60px;
 }
