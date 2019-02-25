@@ -4,7 +4,6 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (onInput)
 
 
-
 -- MAIN
 
 
@@ -12,8 +11,8 @@ main =
   Browser.sandbox { init = init, update = update, view = view }
 
 
-
 -- MODEL
+
 
 type Operator = Plus | Minus | Times | Assign | Eq | And | Or | Invalid
 type Token = TokOp Operator | TokLParen | TokRParen | TokVar String | TokConstInt String | TokConstBool String | TokEnd
