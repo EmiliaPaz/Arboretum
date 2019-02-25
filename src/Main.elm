@@ -41,16 +41,31 @@ Model = VTerm ( name = "b"
 
 -- MODEL
 type Const = CBool Bool | CInt Int
-type alias Var = 
-  { name: String
-  , term: Term }
-type Term = CTerm Const | VTerm Var | Plus Term Term | Minus Term Term | Times Term Term | Eq Term Term | And Term Term | Or Term Term
+type Term = CTerm Const | VTerm String | Plus Term Term | Minus Term Term | Times Term Term | Eq Term Term | And Term Term | Or Term Term
 
 -- V(alue)Type is a type that a TreeAssembly term can evaluate to
 type VType = TBool | TInt
 
 -- Val is a value that a term can evaluate to
 type Val = VBool Bool | VInt Int
+
+type alias Var = 
+  { name: String
+  , term: Term }
+type alias Env = List Var
+
+-- attempts to find a Term for s in e
+findInEnv : Env -> String -> Maybe Term
+findInEnv e s =
+  case e of
+    [] ->
+      Nothing
+    
+    v :: vs ->
+      if v.name == s then
+        Just v.term
+      else findInEnv vs s
+
 
 boolToString : Bool -> String
 boolToString b = 
@@ -68,7 +83,7 @@ termToString t =
         CInt a -> String.fromInt a
       
     VTerm x ->
-      "( " ++ x.name ++ " | " ++ x.name ++ " = " ++ (termToString x.term) ++ " )"
+      x
     
     Plus t1 t2 ->
       "(" ++ (termToString t1) ++ " + " ++ (termToString t2) ++ ")"
@@ -130,31 +145,34 @@ filterBools = filterTypes TBool
 
 
 -- returns Just VType if the term typechecks, Nothing otherwise
-typecheck : Term -> Maybe VType
-typecheck t =
+typecheck : Env -> Term -> Maybe VType
+typecheck e t =
   case t of
     CTerm c ->
       case c of
         CBool _ -> Just TBool
         CInt _ -> Just TInt
     
-    VTerm v -> typecheck v.term
+    VTerm v -> 
+      case findInEnv e v of
+        Just subst -> typecheck e subst
+        Nothing    -> Nothing
     
     -- binary int operators all have the same behavior
-    Plus x y  -> filterInts (map typecheck [x, y])
-    Minus x y -> filterInts (map typecheck [x, y])
-    Times x y -> filterInts (map typecheck [x, y])
+    Plus x y  -> filterInts (map (typecheck e) [x, y])
+    Minus x y -> filterInts (map (typecheck e) [x, y])
+    Times x y -> filterInts (map (typecheck e) [x, y])
 
     Eq x y ->
-      if filterInts(map typecheck [x, y]) == Just TInt then
+      if filterInts(map (typecheck e) [x, y]) == Just TInt then
         Just TBool
-      else if filterBools(map typecheck [x, y]) == Just TBool then
+      else if filterBools(map (typecheck e) [x, y]) == Just TBool then
         Just TBool
       else
         Nothing
     
-    And x y -> filterBools (map typecheck [x, y])
-    Or x y -> filterBools (map typecheck [x, y])
+    And x y -> filterBools (map (typecheck e) [x, y])
+    Or x y -> filterBools (map (typecheck e) [x, y])
 
 
 tryBinFn : (a -> b -> c) -> Maybe a -> Maybe b -> Maybe c
@@ -203,8 +221,11 @@ takeOne (mx, my) =
 
 
 -- evaluates a term
-eval : Term -> Maybe Val
-eval t =
+eval : Env -> Term -> Maybe Val
+eval e t =
+  let
+    evale = eval e
+  in
   case t of
     CTerm c ->
       case c of
@@ -212,28 +233,30 @@ eval t =
         CBool x -> Just (VBool x)
     
     VTerm v ->
-      eval v.term
+      case findInEnv e v of
+        Just subst -> evale subst
+        Nothing    -> Nothing
     
     Plus x y -> 
-      wrapInt ( tryBinFn (+) (tryInt (eval x)) (tryInt (eval y)) )
+      wrapInt ( tryBinFn (+) (tryInt (evale x)) (tryInt (evale y)) )
 
     Minus x y -> 
-      wrapInt ( tryBinFn (-) (tryInt (eval x)) (tryInt (eval y)) )
+      wrapInt ( tryBinFn (-) (tryInt (evale x)) (tryInt (evale y)) )
 
     Times x y -> 
-      wrapInt ( tryBinFn (*) (tryInt (eval x)) (tryInt (eval y)) )
+      wrapInt ( tryBinFn (*) (tryInt (evale x)) (tryInt (evale y)) )
 
     Eq x y ->
       takeOne
-        ( wrapBool ( tryBinFn (==) (tryInt (eval x)) (tryInt (eval y)) )
-        , wrapBool ( tryBinFn (==) (tryBool (eval x)) (tryBool (eval y)) )
+        ( wrapBool ( tryBinFn (==) (tryInt (evale x)) (tryInt (evale y)) )
+        , wrapBool ( tryBinFn (==) (tryBool (evale x)) (tryBool (evale y)) )
         )
 
     And x y -> 
-      wrapBool ( tryBinFn (&&) (tryBool (eval x)) (tryBool (eval y)) )
+      wrapBool ( tryBinFn (&&) (tryBool (evale x)) (tryBool (evale y)) )
     
     Or x y -> 
-      wrapBool ( tryBinFn (||) (tryBool (eval x)) (tryBool (eval y)) )
+      wrapBool ( tryBinFn (||) (tryBool (evale x)) (tryBool (evale y)) )
 
 
 type alias Model = Term
