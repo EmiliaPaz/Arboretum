@@ -4,6 +4,7 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (onInput)
 
 
+
 -- MAIN
 
 
@@ -11,13 +12,13 @@ main =
   Browser.sandbox { init = init, update = update, view = view }
 
 
+
 -- MODEL
 
+--type Operator = Plus | Minus | Times | Assign | Eq | And | Or | Invalid
+type Token = Plus | Minus | Times | Assign | Eq | And | Or | TokLParen | TokRParen | TokVar String | TokConstInt String | TokConstBool String | Invalid | TokEnd
 
-type Operator = Plus | Minus | Times | Assign | Eq | And | Or | Invalid
-type Token = TokOp Operator | TokLParen | TokRParen | TokVar String | TokConstInt String | TokConstBool String | TokEnd
-
-operator : String -> Operator
+operator : String -> Token
 operator str =
             case str of
                 "" -> Invalid
@@ -52,9 +53,9 @@ tokenize : List String -> List Token
 tokenize str =
         case str of
             [] -> []
-            (x::xs) -> --TokOp (operator x) :: tokenize xs
+            (x::xs) ->
                 if (List.member x operators)
-                    then TokOp (operator x) :: tokenize xs
+                    then (operator x) :: tokenize xs
                 else if (isBoolean x)
                     then TokConstBool x :: tokenize xs
                 else if (String.filter Char.isDigit x == x && x /= "")
@@ -67,7 +68,7 @@ tokenize str =
                     then TokRParen :: tokenize xs
                 else if (x == "")
                     then tokenize xs
-                else TokOp Invalid :: tokenize xs
+                else Invalid :: tokenize xs
 
 tokenizePrint : List Token -> String
 tokenizePrint tokens =
