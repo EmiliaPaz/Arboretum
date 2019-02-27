@@ -243,7 +243,6 @@ init _ =
   ( Times (Plus (CTerm (CInt 5)) (CTerm (CInt 1))) (CTerm (CInt 7))
   , Cmd.none )
 
-
 -- UPDATE
 type Msg = None
 
