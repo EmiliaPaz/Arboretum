@@ -65,7 +65,7 @@ view model =
         , div [ class "expression-builder" ] [ text (Tokenizer.tokenizePrint(model.tokens)) ]
         , div [ class "expression-builder" ] [ text (toString(model.parseTree)) ]
         ]
-    , Html.node "link" [ Html.Attributes.rel "stylesheet", Html.Attributes.href "trees.css" ] []
+    , Html.node "link" [ Html.Attributes.rel "stylesheet", Html.Attributes.href "style.css" ] []
     , div [ class "tree-container" ] [ div [] [ renderTree (model.parseTree) ] ]
     , renderSummary model
     ]
