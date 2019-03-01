@@ -39,6 +39,7 @@ termToString t =
 
     Or t1 t2 ->
       "(" ++ (termToString t1) ++ " || " ++ (termToString t2) ++ ")"
+
     EmptyTree -> ""
 
 
@@ -109,8 +110,8 @@ typecheck e t =
       else
         Nothing
     
-    And x y -> filterBools (map typecheck [x, y])
-    Or x y -> filterBools (map typecheck [x, y])
+    And x y -> filterBools (map (typecheck e) [x, y])
+    Or x y -> filterBools (map (typecheck e) [x, y])
     EmptyTree -> Nothing
 
 
@@ -195,7 +196,6 @@ eval e t =
       wrapBool ( tryBinFn (&&) (tryBool (evale x)) (tryBool (evale y)) )
     
     Or x y -> 
-      wrapBool ( tryBinFn (||) (tryBool (eval x)) (tryBool (eval y)) )
+      wrapBool ( tryBinFn (||) (tryBool (evale x)) (tryBool (evale y)) )
+
     EmptyTree -> Nothing
-
-
