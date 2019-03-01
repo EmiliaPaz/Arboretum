@@ -36,7 +36,7 @@ update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
     Change newContent ->
-      ({ model | content = newContent , tokens = tokenize(String.words newContent) , parseTree = parse (tokenize(String.words model.content))   }, Cmd.none)
+      ({ model | content = newContent , tokens = tokenize(String.words newContent) , parseTree = parse (tokenize(String.words newContent))   }, Cmd.none)
 
 
 
@@ -47,7 +47,7 @@ subscriptions model =
 
 
 -------------------------------------- Tokenizer --------------------------------------
-type Token = TokPlus | TokMinus | TokTimes | TokAssign | TokEq | TokAnd | TokOr | TokLParen | TokRParen | TokVar String | TokConstInt String | TokConstBool String | TokInvalid | TokEnd
+type Token = TokPlus | TokMinus | TokTimes | TokAssign | TokEq | TokAnd | TokOr | TokLParen | TokRParen | TokVar String | TokConstInt Int | TokConstBool Bool | TokInvalid | TokEnd
 
 operator : String -> Token
 operator str =
@@ -74,10 +74,25 @@ operators = ["+", "-", "*", "=", "==", "&&", "||"]
 
 isBoolean : String -> Bool
 isBoolean x =
-    case x of
-        "True" -> True
-        "False" -> True
-        other -> False
+  case x of
+      "True" -> True
+      "False" -> True
+      other -> False
+
+stringToBoolean : String -> Bool
+stringToBoolean x =
+  case x of
+      "True"  -> True
+      "False" -> False
+      _       -> False                                    -- should never get called
+
+stringToInt : String -> Int
+stringToInt x = fromMaybeInt(String.toInt x)
+
+fromMaybeInt : Maybe Int -> Int
+fromMaybeInt x = case x of
+                  Nothing -> 0                            -- should never get called
+                  Just y  -> y
 
 
 tokenize : List String -> List Token
@@ -88,9 +103,9 @@ tokenize str =
                 if (List.member x operators)
                     then (operator x) :: tokenize xs
                 else if (isBoolean x)
-                    then TokConstBool x :: tokenize xs
+                    then TokConstBool (stringToBoolean x) :: tokenize xs
                 else if (String.filter Char.isDigit x == x && x /= "")
-                    then TokConstInt x :: tokenize xs
+                    then TokConstInt (stringToInt x) :: tokenize xs
                 else if (String.filter Char.isLower x == x && x /= "")
                     then TokVar x :: tokenize xs
                 else if (x == "(")
@@ -136,17 +151,14 @@ parse : List Token -> Term
 parse tokens = let (tree, toks) = expression tokens
                 in tree
 
-fromMaybeInt : Maybe Int -> Int
-fromMaybeInt x = case x of
-                  Nothing -> 0
-                  Just y  -> y
-
 expression : List Token -> (Term, List Token)
 expression tokens = let (termTree, tokens2) = expr tokens
                       in case head tokens2 of
                         Just (TokPlus) ->  let (expTree, tokens3) = expression (fromMaybeList(tail tokens2)) in (Plus termTree expTree, tokens3)
                         Just (TokMinus) ->  let (expTree, tokens3) = expression (fromMaybeList(tail tokens2)) in (Minus termTree expTree, tokens3)
                         Just (TokTimes) ->  let (expTree, tokens3) = expression (fromMaybeList(tail tokens2)) in (Times termTree expTree, tokens3)
+                        Just (TokOr) ->  let (expTree, tokens3) = expression (fromMaybeList(tail tokens2)) in (Or termTree expTree, tokens3)
+                        Just (TokAnd) ->  let (expTree, tokens3) = expression (fromMaybeList(tail tokens2)) in (And termTree expTree, tokens3)
                         Just (TokConstInt n) -> (termTree, tokens2)
                         _ -> (termTree, tokens2)
 
@@ -157,7 +169,8 @@ expr tokens =
                                   in case head rightTokens of
                                     Just (TokRParen)  -> (leftTree, fromMaybeList(tail rightTokens))
                                     _                 -> (EmptyTree, [])
-        Just (TokConstInt p)  -> let p_int = fromMaybeInt(String.toInt p) in (CTerm (CInt p_int), fromMaybeList(tail tokens))
+        Just (TokConstInt i)  -> (CTerm (CInt i), fromMaybeList(tail tokens))
+        Just (TokConstBool b) -> (CTerm (CBool b), fromMaybeList(tail tokens))
         Just (TokPlus)        -> (EmptyTree, [])
         Just (TokMinus)       -> (EmptyTree, [])
         Just (TokTimes)       -> (EmptyTree, [])
@@ -382,7 +395,7 @@ view model =
         , div [ class "expression-builder" ] [ text (toString(model.parseTree)) ]
         ]
     , Html.node "link" [ Html.Attributes.rel "stylesheet", Html.Attributes.href "trees.css" ] []
-    , div [ class "tree-container" ] [ div [] [ renderTree (parse (tokenize(String.words model.content))) ] ]
+    , div [ class "tree-container" ] [ div [] [ renderTree (model.parseTree) ] ]
     , renderSummary model
     ]
  }
@@ -391,7 +404,7 @@ renderSummary : Model -> Html Msg
 renderSummary model =
   div [ class "summary" ]
   [ h1 [ class "summary-title" ] [ text "Summary:" ]
-  , text ( "Evaluation result: " ++ valToString (eval (parse (tokenize(String.words model.content)))    ) )
+  , text ( "Evaluation result: " ++ valToString (eval model.parseTree) )
   ]
 
 renderTree : Term -> Html Msg
