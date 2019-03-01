@@ -17,27 +17,27 @@ main =
 
 type alias Model =
   { content : String,
-    termTree : Term
+    tokens  : List Token, 
+    parseTree   : Term
   }
 
 init : () -> (Model, Cmd Msg)
 init _ =
-  ({content = "", termTree=EmptyTree}, Cmd.none)
+  ( {content = "", tokens = [], parseTree = EmptyTree}, Cmd.none )
   
 
 -- UPDATE
 
 type Msg
-  = Change String | Render Term
+  = Change String
 
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
     Change newContent ->
-      ({ model | content = newContent }, Cmd.none)
-    Render newTree ->
-      ({ model | termTree = newTree }, Cmd.none)
+      ({ model | content = newContent , tokens = tokenize(String.words newContent) , parseTree = parse (tokenize(String.words model.content))   }, Cmd.none)
+
 
 
 -- SUBSCRIPTIONS
@@ -378,8 +378,8 @@ view model =
     [
       div []
         [ input [ placeholder "Text to tokenize", value model.content, onInput Change ] []
-        , div [] [ text (tokenizePrint(tokenize(String.words model.content))) ]
-        , div [] [ text (toString (parse (tokenize(String.words model.content)))) ]
+        , div [ class "expression-builder" ] [ text (tokenizePrint(model.tokens)) ]
+        , div [ class "expression-builder" ] [ text (toString(model.parseTree)) ]
         ]
     , Html.node "link" [ Html.Attributes.rel "stylesheet", Html.Attributes.href "trees.css" ] []
     , div [ class "tree-container" ] [ div [] [ renderTree (parse (tokenize(String.words model.content))) ] ]
@@ -391,7 +391,7 @@ renderSummary : Model -> Html Msg
 renderSummary model =
   div [ class "summary" ]
   [ h1 [ class "summary-title" ] [ text "Summary:" ]
-  , text ( "Evaluation result: " ++ valToString (eval model.termTree) )
+  , text ( "Evaluation result: " ++ valToString (eval (parse (tokenize(String.words model.content)))    ) )
   ]
 
 renderTree : Term -> Html Msg
