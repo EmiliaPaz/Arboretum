@@ -142,7 +142,7 @@ fromMaybeInt x = case x of
                   Just y  -> y
 
 expression : List Token -> (Term, List Token)
-expression tokens = let (termTree, tokens2) = term tokens
+expression tokens = let (termTree, tokens2) = expr tokens
                       in case head tokens2 of
                         Just (TokPlus) ->  let (expTree, tokens3) = expression (fromMaybeList(tail tokens2)) in (Plus termTree expTree, tokens3)
                         Just (TokMinus) ->  let (expTree, tokens3) = expression (fromMaybeList(tail tokens2)) in (Minus termTree expTree, tokens3)
@@ -150,14 +150,18 @@ expression tokens = let (termTree, tokens2) = term tokens
                         Just (TokConstInt n) -> (termTree, tokens2)
                         _ -> (termTree, tokens2)
 
-term : List Token -> (Term, List Token)
-term tokens =
+expr : List Token -> (Term, List Token)
+expr tokens =
     case head tokens of
+        Just (TokLParen)      -> let (leftTree, rightTokens) = expression (fromMaybeList(tail tokens)) 
+                                  in case head rightTokens of
+                                    Just (TokRParen)  -> (leftTree, fromMaybeList(tail rightTokens))
+                                    _                 -> (EmptyTree, [])
         Just (TokConstInt p)  -> let p_int = fromMaybeInt(String.toInt p) in (CTerm (CInt p_int), fromMaybeList(tail tokens))
-        Just (TokPlus)  -> (EmptyTree, [])
-        Just (TokMinus)  -> (EmptyTree, [])
-        Just (TokTimes)  -> (EmptyTree, [])
-        _          -> (EmptyTree, [])
+        Just (TokPlus)        -> (EmptyTree, [])
+        Just (TokMinus)       -> (EmptyTree, [])
+        Just (TokTimes)       -> (EmptyTree, [])
+        _                     -> (EmptyTree, [])
 
 
 -- Helper functions
