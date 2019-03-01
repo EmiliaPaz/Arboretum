@@ -159,6 +159,7 @@ expression tokens = let (termTree, tokens2) = expr tokens
                         Just (TokTimes) ->  let (expTree, tokens3) = expression (fromMaybeList(tail tokens2)) in (Times termTree expTree, tokens3)
                         Just (TokOr) ->  let (expTree, tokens3) = expression (fromMaybeList(tail tokens2)) in (Or termTree expTree, tokens3)
                         Just (TokAnd) ->  let (expTree, tokens3) = expression (fromMaybeList(tail tokens2)) in (And termTree expTree, tokens3)
+                        Just (TokEq) ->  let (expTree, tokens3) = expression (fromMaybeList(tail tokens2)) in (Eq termTree expTree, tokens3)
                         Just (TokConstInt n) -> (termTree, tokens2)
                         _ -> (termTree, tokens2)
 
