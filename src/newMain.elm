@@ -67,7 +67,6 @@ update msg model =
        }, Cmd.none)
     IncDepth -> ({ model | renderTree = genRenderTree (model.renderTree.renderDepth + 1) model.env model.parseTree }, Cmd.none)
     DecDepth -> ({ model | renderTree = genRenderTree (model.renderTree.renderDepth - 1) model.env model.parseTree }, Cmd.none)
--- depth not working
 
 
 -- SUBSCRIPTIONS
