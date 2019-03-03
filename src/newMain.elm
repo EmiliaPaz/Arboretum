@@ -63,6 +63,7 @@ update msg model =
           content = newContent
         , tokens = Tokenizer.tokenize (String.words newContent)
         , parseTree = Parser.parse (Tokenizer.tokenize (String.words newContent))
+        , renderTree = genRenderTree model.renderTree.renderDepth model.env (Parser.parse (Tokenizer.tokenize (String.words newContent)))
        }, Cmd.none)
     IncDepth -> ({ model | renderTree = genRenderTree (model.renderTree.renderDepth + 1) model.env model.parseTree }, Cmd.none)
     DecDepth -> ({ model | renderTree = genRenderTree (model.renderTree.renderDepth - 1) model.env model.parseTree }, Cmd.none)
