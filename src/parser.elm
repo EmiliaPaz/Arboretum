@@ -33,14 +33,14 @@ expression tokens = let (termTree, tokens2) = expr tokens
 expr : List Token -> (Term, List Token)
 expr tokens =
     case head tokens of
-        Just (TokLParen)      -> let (leftTree, rightTokens) = expression (fromMaybeList(tail tokens)) 
+        Just (TokLParen)      -> let (leftTree, rightTokens) = expression (fromMaybeList(tail tokens))
                                   in case head rightTokens of
                                     Just (TokRParen)  -> (leftTree, fromMaybeList(tail rightTokens))
                                     _                 -> (EmptyTree, [])
         Just (TokConstInt i)  -> (CTerm (CInt i), fromMaybeList(tail tokens))
         Just (TokConstBool b) -> (CTerm (CBool b), fromMaybeList(tail tokens))
+        Just (TokVar v)       -> (VTerm v, fromMaybeList(tail tokens))
         Just (TokPlus)        -> (EmptyTree, [])
         Just (TokMinus)       -> (EmptyTree, [])
         Just (TokTimes)       -> (EmptyTree, [])
         _                     -> (EmptyTree, [])
-

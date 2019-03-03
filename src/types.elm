@@ -11,7 +11,7 @@ type VType = TBool | TInt
 -- Val is a value that a term can evaluate to
 type Val = VBool Bool | VInt Int
 
-type alias Var = 
+type alias Var =
   { name: String
   , term: Term }
 
