@@ -77,6 +77,7 @@ tokenizePrint : List Token -> String
 tokenizePrint tokens =
     case tokens of
         [] -> ""
+        (x::[]) -> (Debug.toString x)
         (x::xs) ->
             case x of
                 _ -> (Debug.toString x) ++ ", " ++ tokenizePrint xs

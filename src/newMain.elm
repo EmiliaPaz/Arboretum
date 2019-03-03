@@ -1,5 +1,5 @@
 import Browser exposing (Document)
-import Html exposing (Html, button, div, text, h1, input, span)
+import Html exposing (Html, button, div, text, h1, h3, input, span, br)
 import Html.Events exposing (onClick, onInput)
 import Html.Attributes exposing (..)
 import List exposing (map,head,tail)
@@ -31,13 +31,23 @@ type alias Model =
   }
 
 init : () -> (Model, Cmd Msg)
-init _ = ( {content = "", tokens = [], parseTree = testTerm, env = lookup testVars, renderTree = genRenderTree testDepth (lookup testVars) testTerm }, Cmd.none )
+init _ =
+  let
+    testVars = [{ name = "a", term = CTerm (CInt 5)}]
+    testInput = "( ( ( ( 5 + 1 ) * 7 ) == ( 21 * a ) ) && True )"
+    testTokens = Tokenizer.tokenize (String.words testInput)
+    testTerm = Parser.parse(testTokens)
+    testEnv = lookup testVars
+    testDepth = 3
+    testRender = genRenderTree testDepth testEnv testTerm
+  in
+  ( { content = "", tokens = testTokens, parseTree = testTerm, env = testEnv, renderTree = testRender }, Cmd.none )
 
- -- test cases:
-testVars = [{ name = "a", term = CTerm (CInt 5)}]
-testTerm = And (Eq (Times (Plus (CTerm (CInt 5)) (CTerm (CInt 1))) (CTerm (CInt 7))) (Times (CTerm (CInt 21)) (VTerm "a"))) (CTerm (CBool True))
+-- test cases:
+--testVars = [{ name = "a", term = CTerm (CInt 5)}]
+--testTerm = And (Eq (Times (Plus (CTerm (CInt 5)) (CTerm (CInt 1))) (CTerm (CInt 7))) (Times (CTerm (CInt 21)) (VTerm "a"))) (CTerm (CBool True))
 failTerm = Or (Eq (CTerm (CInt 1)) (CTerm (CBool True))) (CTerm (CBool False))
-testDepth = 3
+--testDepth = 3
 
 -- UPDATE
 
@@ -74,14 +84,18 @@ view model =
     [
       div []
         [ input [ placeholder "Text to render", value model.content, onInput Change ] []
-        , div [ class "expression-builder" ] [ text (Tokenizer.tokenizePrint(model.tokens)) ]
+        , h3 [ class "css-title" ] [text "Tokens:"]
+        , div [ class "expression-builder" ] [ text (Tokenizer.tokenizePrint(model.tokens))]
+        , h3 [ class "css-title" ] [text "Parse Tree:"]
         , div [ class "expression-builder" ] [ text (toString(model.parseTree)) ]
         ]
     , Html.node "link" [ Html.Attributes.rel "stylesheet", Html.Attributes.href "trees.css" ] []
     , div [ class "flex-container" ]
-      [ div [ class "tree-container" ] [ div [] [ renderTree model.env model.renderTree ] ]
+      [ h3 [class "css-title"] [text "Rendered Tree:"]
+      ,  div [ class "tree-container" ] [ div [] [ renderTree model.env model.renderTree ] ]
       , div [ class "ui-div" ]
         [ renderSummary model
+        , h3 [class "css-title"] [text "Depth:"]
         , div [ class "buttons" ]
           [ button [ onClick DecDepth ] [ text "-" ]
           , text ( String.fromInt model.renderTree.renderDepth )
