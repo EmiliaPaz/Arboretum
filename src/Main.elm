@@ -49,20 +49,13 @@ update msg model =
         c = newContent
         t = Tokenizer.tokenize (String.words c)
         p = Parser.parse t
-        r = genRenderTree model.renderTree.renderDepth model.env p
+        r = genRenderTree model.renderTree.renderDepth (lookup model.vars) p
       in
       ({ model |
-<<<<<<< HEAD
-          content = newContent
-        , tokens = Tokenizer.tokenize (String.words newContent)
-        , parseTree = Parser.parse (Tokenizer.tokenize (String.words newContent))
-        , renderTree = genRenderTree model.renderTree.renderDepth (lookup model.vars) (Parser.parse (Tokenizer.tokenize (String.words newContent)))
-=======
           content = c
         , tokens = t
         , parseTree = p
         , renderTree = r
->>>>>>> 0f79600173519932aa081c847f96dad80896519c
        }, Cmd.none)
     IncDepth -> ({ model | renderTree = genRenderTree (model.renderTree.renderDepth + 1) (lookup model.vars) model.parseTree }, Cmd.none)
     DecDepth -> ({ model | renderTree = genRenderTree (model.renderTree.renderDepth - 1) (lookup model.vars) model.parseTree }, Cmd.none)
