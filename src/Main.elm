@@ -26,7 +26,7 @@ type alias Model =
   { content : String
   , tokens  : List (List Token)
   , parseTree  : Term
-  , env        : Env
+  , vars       : List Var
   , renderTree : RenderTree
   }
 
@@ -36,18 +36,12 @@ init _ =
     testVars = [{ name = "a", term = CTerm (CInt 5)}]
     testInput = "( ( ( ( 5 + 1 ) * 7 ) == ( 21 * a ) ) && True )"
     testTokens = Tokenizer.tokenize (map (String.words) (String.lines testInput))
-    testTerm = Parser.parse([TokConstInt 5])
-    testEnv = lookup testVars
+    testTerm = Parser.parse [TokConstInt 5] --Temporary, change later
     testDepth = 3
-    testRender = genRenderTree testDepth testEnv testTerm
+    testRender = genRenderTree testDepth (lookup testVars) testTerm
   in
-  ( { content = "", tokens = testTokens, parseTree = testTerm, env = testEnv, renderTree = testRender }, Cmd.none )
+  ( { content = "", tokens = testTokens, parseTree = testTerm, vars = testVars, renderTree = testRender }, Cmd.none )
 
--- test cases:
---testVars = [{ name = "a", term = CTerm (CInt 5)}]
---testTerm = And (Eq (Times (Plus (CTerm (CInt 5)) (CTerm (CInt 1))) (CTerm (CInt 7))) (Times (CTerm (CInt 21)) (VTerm "a"))) (CTerm (CBool True))
-failTerm = Or (Eq (CTerm (CInt 1)) (CTerm (CBool True))) (CTerm (CBool False))
---testDepth = 3
 
 -- UPDATE
 
@@ -61,9 +55,10 @@ update msg model =
     Change newContent ->
       let
         c = newContent
+
         t = Tokenizer.tokenize (map (String.words) (String.lines c))
-        p = Parser.parse [TokConstInt 5]
-        r = genRenderTree model.renderTree.renderDepth model.env p
+        p = Parser.parse [TokConstInt 5] --Temporary, change later
+        r = genRenderTree model.renderTree.renderDepth (lookup model.vars) p
       in
       ({ model |
           content = c
@@ -71,8 +66,8 @@ update msg model =
         , parseTree = p
         , renderTree = r
        }, Cmd.none)
-    IncDepth -> ({ model | renderTree = genRenderTree (model.renderTree.renderDepth + 1) model.env model.parseTree }, Cmd.none)
-    DecDepth -> ({ model | renderTree = genRenderTree (model.renderTree.renderDepth - 1) model.env model.parseTree }, Cmd.none)
+    IncDepth -> ({ model | renderTree = genRenderTree (model.renderTree.renderDepth + 1) (lookup model.vars) model.parseTree }, Cmd.none)
+    DecDepth -> ({ model | renderTree = genRenderTree (model.renderTree.renderDepth - 1) (lookup model.vars) model.parseTree }, Cmd.none)
 
 
 -- SUBSCRIPTIONS
@@ -98,7 +93,7 @@ view model =
     , Html.node "link" [ Html.Attributes.rel "stylesheet", Html.Attributes.href "style.css" ] []
     , div [ class "flex-container" ]
       [ h3 [class "css-title"] [text "Rendered Tree:"]
-      ,  div [ class "tree-container" ] [ div [] [ renderTree model.env model.renderTree ] ]
+      ,  div [ class "tree-container" ] [ div [] [ renderTree (lookup model.vars) model.renderTree ] ]
       , div [ class "ui-div" ]
         [ renderSummary model
         , h3 [class "css-title"] [text "Depth:"]
@@ -115,7 +110,7 @@ renderSummary : Model -> Html Msg
 renderSummary model =
   div [ class "summary" ]
   [ h1 [ class "summary-title" ] [ text "Summary:" ]
-  , text ( "Evaluation result: " ++ Render.valToString (Render.eval model.env model.parseTree) )
+  , text ( "Evaluation result: " ++ Render.valToString (Render.eval (lookup model.vars) model.parseTree) )
   ]
 
 
@@ -157,13 +152,6 @@ lookup e s =
         Just v.term
       else lookup vs s
 
-type alias RenderTree =
-  { render: Bool
-  , renderDepth: Int
-  , term: Term
-  , children: RenderChildren}
-
-type RenderChildren = RenderChildren (List RenderTree)
 
 genRenderTree : Int -> Env -> Term -> RenderTree
 genRenderTree depth e t =
