@@ -115,6 +115,43 @@ typecheck e t =
     EmptyTree -> Nothing
 
 
+-- experimental rewrite of typecheck to provide more information
+
+type TypeResult = Checks VType | Fails VType VType | None
+type Tree a = Node a (List (Tree a))
+
+testTypes : VType -> VType -> TypeResult
+testTypes exp got =
+  case exp == got of
+    True  -> Checks exp
+    False -> Fails exp got
+
+typecheck2 : Env -> VType -> Term -> Tree TypeResult
+typecheck2 env exp t = 
+  let
+    check = typecheck2 env
+    test  = testTypes exp
+  in
+    case t of
+      CTerm x ->
+        case x of
+          CBool _ -> Node (test TBool) []
+          CInt  _ -> Node (test TInt) []
+      
+      VTerm x ->
+        case env x of
+          Just subst -> Node (test exp) [check exp subst]
+          Nothing    -> Node (None) []
+      
+      Plus  x y -> Node (test TInt) [check TInt x, check TInt y]
+      Minus x y -> Node (test TInt) [check TInt x, check TInt y]
+      Times x y -> Node (test TInt) [check TInt x, check TInt y]
+      Eq x y -> Node (test TBool) [check TInt x, check TInt y]
+      And x y -> Node (test TBool) [check TBool x, check TBool y]
+      Or x y -> Node (test TBool) [check TBool x, check TBool y]
+      EmptyTree -> Node (None) []
+
+
 tryBinFn : (a -> b -> c) -> Maybe a -> Maybe b -> Maybe c
 tryBinFn f mx my = 
   case mx of
