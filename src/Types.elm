@@ -16,3 +16,11 @@ type alias Var =
   , term: Term }
 
 type alias Env = (String -> Maybe Term)
+
+type alias RenderTree =
+  { render: Bool
+  , renderDepth: Int
+  , term: Term
+  , children: RenderChildren}
+
+type RenderChildren = RenderChildren (List RenderTree)
