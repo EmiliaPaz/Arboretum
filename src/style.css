@@ -1,6 +1,28 @@
 body {
     font-family: Consolas,monaco,monospace;
     font-size: 16pt;
+    display: flex;
+    flex-direction :row;
+    justify-content: space-around;
+    flex-wrap: nowrap;
+}
+
+.tokenizer-parser-container {
+  /* margin: 0 0 0 300px; */
+}
+
+.flex-container {
+  /* margin: 0 300px 0 0; */
+}
+
+.tree-ui-container {
+
+}
+
+.tree-title-container {
+}
+
+.ui-div {
 }
 
 .tree-container {

@@ -78,10 +78,10 @@ tokenizeLine str =
                 else TokInvalid :: tokenizeLine xs
 
 printTokens : List (List Token) -> String
-printTokens str =
-  case str of
+printTokens tkns =
+  case tkns of
   []-> ""
-  (l::ls) -> tokenizePrint l ++ ";\n" ++ printTokens ls
+  (l::ls) -> tokenizePrint l ++ " ; " ++ printTokens ls
 
 tokenizePrint : List Token -> String
 tokenizePrint tokens =
