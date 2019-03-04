@@ -1,5 +1,5 @@
 import Browser exposing (Document)
-import Html exposing (Html, button, div, text, h1, h3, input, span, br)
+import Html exposing (Html, button, div, text, h1, h3, input, span, textarea)
 import Html.Events exposing (onClick, onInput)
 import Html.Attributes exposing (..)
 import List exposing (map,head,tail)
@@ -45,11 +45,24 @@ update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
     Change newContent ->
+      let
+        c = newContent
+        t = Tokenizer.tokenize (String.words c)
+        p = Parser.parse t
+        r = genRenderTree model.renderTree.renderDepth model.env p
+      in
       ({ model |
+<<<<<<< HEAD
           content = newContent
         , tokens = Tokenizer.tokenize (String.words newContent)
         , parseTree = Parser.parse (Tokenizer.tokenize (String.words newContent))
         , renderTree = genRenderTree model.renderTree.renderDepth (lookup model.vars) (Parser.parse (Tokenizer.tokenize (String.words newContent)))
+=======
+          content = c
+        , tokens = t
+        , parseTree = p
+        , renderTree = r
+>>>>>>> 0f79600173519932aa081c847f96dad80896519c
        }, Cmd.none)
     IncDepth -> ({ model | renderTree = genRenderTree (model.renderTree.renderDepth + 1) (lookup model.vars) model.parseTree }, Cmd.none)
     DecDepth -> ({ model | renderTree = genRenderTree (model.renderTree.renderDepth - 1) (lookup model.vars) model.parseTree }, Cmd.none)
@@ -69,7 +82,7 @@ view model =
   , body =
     [
       div []
-        [ input [ placeholder "Text to render", value model.content, onInput Change ] []
+        [ textarea [ rows 15, cols 50, placeholder "Text to render", value model.content, onInput Change ] []
         , h3 [ class "css-title" ] [text "Tokens:"]
         , div [ class "expression-builder" ] [ text (Tokenizer.tokenizePrint(model.tokens))]
         , h3 [ class "css-title" ] [text "Parse Tree:"]
