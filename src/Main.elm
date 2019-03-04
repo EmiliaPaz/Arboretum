@@ -32,15 +32,8 @@ type alias Model =
 
 init : () -> (Model, Cmd Msg)
 init _ =
-  let
-    testVars = [{ name = "a", term = CTerm (CInt 5)}]
-    testInput = "( ( ( ( 5 + 1 ) * 7 ) == ( 21 * a ) ) && True )"
-    testTokens = Tokenizer.tokenize (map (String.words) (String.lines testInput))
-    testTerm = Parser.parse [TokConstInt 5] --Temporary, change later
-    testDepth = 3
-    testRender = genRenderTree testDepth (lookup testVars) testTerm
-  in
-  ( { content = "", tokens = testTokens, parseTree = testTerm, vars = testVars, renderTree = testRender }, Cmd.none )
+  ( { content = "", tokens = [], parseTree = EmptyTree, vars = [], renderTree = { render=False, renderDepth=0, term=EmptyTree, children= RenderChildren []} }, Cmd.none )
+
 
 
 -- UPDATE

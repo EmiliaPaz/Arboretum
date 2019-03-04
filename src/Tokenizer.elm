@@ -4,7 +4,7 @@ module Tokenizer exposing (..)
 import Debug exposing (toString)
 import Types exposing (..)
 
--------------------------------------- tokenizeLiner --------------------------------------
+-------------------------------------- Tokenizer --------------------------------------
 
 operator : String -> Token
 operator str =
@@ -80,9 +80,6 @@ printTokens str =
   case str of
   []-> ""
   (l::ls) -> tokenizePrint l ++ ";\n" ++ printTokens ls
-
-
---printTokens (l::ls) = String.concat (List.map tokenizePrint l)
 
 tokenizePrint : List Token -> String
 tokenizePrint tokens =
