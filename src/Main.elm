@@ -24,7 +24,7 @@ main =
 
 type alias Model =
   { content : String
-  , tokens  : List Token
+  , tokens  : List (List Token)
   , parseTree  : Term
   , env        : Env
   , renderTree : RenderTree
@@ -35,8 +35,8 @@ init _ =
   let
     testVars = [{ name = "a", term = CTerm (CInt 5)}]
     testInput = "( ( ( ( 5 + 1 ) * 7 ) == ( 21 * a ) ) && True )"
-    testTokens = Tokenizer.tokenize (String.words testInput)
-    testTerm = Parser.parse(testTokens)
+    testTokens = Tokenizer.tokenize (map (String.words) (String.lines testInput))
+    testTerm = Parser.parse([TokConstInt 5])
     testEnv = lookup testVars
     testDepth = 3
     testRender = genRenderTree testDepth testEnv testTerm
@@ -61,8 +61,8 @@ update msg model =
     Change newContent ->
       let
         c = newContent
-        t = Tokenizer.tokenize (String.words c)
-        p = Parser.parse t
+        t = Tokenizer.tokenize (map (String.words) (String.lines c))
+        p = Parser.parse [TokConstInt 5]
         r = genRenderTree model.renderTree.renderDepth model.env p
       in
       ({ model |
@@ -91,7 +91,7 @@ view model =
       div []
         [ textarea [ rows 15, cols 50, placeholder "Text to render", value model.content, onInput Change ] []
         , h3 [ class "css-title" ] [text "Tokens:"]
-        , div [ class "expression-builder" ] [ text (Tokenizer.tokenizePrint(model.tokens))]
+        , div [ class "expression-builder" ] [ text (Tokenizer.printTokens(model.tokens))]
         , h3 [ class "css-title" ] [text "Parse Tree:"]
         , div [ class "expression-builder" ] [ text (toString(model.parseTree)) ]
         ]

@@ -4,7 +4,7 @@ module Tokenizer exposing (..)
 import Debug exposing (toString)
 import Types exposing (..)
 
--------------------------------------- Tokenizer --------------------------------------
+-------------------------------------- tokenizeLiner --------------------------------------
 
 operator : String -> Token
 operator str =
@@ -51,27 +51,38 @@ fromMaybeInt x = case x of
                   Nothing -> 0                            -- should never get called
                   Just y  -> y
 
+tokenize : List (List String) -> List (List Token)
+tokenize ls = List.map tokenizeLine ls
 
-tokenize : List String -> List Token
-tokenize str =
+tokenizeLine : List String -> List Token
+tokenizeLine str =
         case str of
             [] -> []
             (x::xs) ->
                 if (List.member x operators)
-                    then (operator x) :: tokenize xs
+                    then (operator x) :: tokenizeLine xs
                 else if (isBoolean x)
-                    then TokConstBool (stringToBoolean x) :: tokenize xs
+                    then TokConstBool (stringToBoolean x) :: tokenizeLine xs
                 else if (String.filter Char.isDigit x == x && x /= "")
-                    then TokConstInt (stringToInt x) :: tokenize xs
+                    then TokConstInt (stringToInt x) :: tokenizeLine xs
                 else if (String.filter Char.isLower x == x && x /= "")
-                    then TokVar x :: tokenize xs
+                    then TokVar x :: tokenizeLine xs
                 else if (x == "(")
-                    then TokLParen :: tokenize xs
+                    then TokLParen :: tokenizeLine xs
                 else if (x == ")")
-                    then TokRParen :: tokenize xs
+                    then TokRParen :: tokenizeLine xs
                 else if (x == "")
-                    then tokenize xs
-                else TokInvalid :: tokenize xs
+                    then tokenizeLine xs
+                else TokInvalid :: tokenizeLine xs
+
+printTokens : List (List Token) -> String
+printTokens str =
+  case str of
+  []-> ""
+  (l::ls) -> tokenizePrint l ++ ";\n" ++ printTokens ls
+
+
+--printTokens (l::ls) = String.concat (List.map tokenizePrint l)
 
 tokenizePrint : List Token -> String
 tokenizePrint tokens =
