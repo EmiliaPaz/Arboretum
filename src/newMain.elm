@@ -89,7 +89,7 @@ view model =
         , h3 [ class "css-title" ] [text "Parse Tree:"]
         , div [ class "expression-builder" ] [ text (toString(model.parseTree)) ]
         ]
-    , Html.node "link" [ Html.Attributes.rel "stylesheet", Html.Attributes.href "trees.css" ] []
+    , Html.node "link" [ Html.Attributes.rel "stylesheet", Html.Attributes.href "style.css" ] []
     , div [ class "flex-container" ]
       [ h3 [class "css-title"] [text "Rendered Tree:"]
       ,  div [ class "tree-container" ] [ div [] [ renderTree model.env model.renderTree ] ]
