@@ -1,5 +1,5 @@
 import Browser exposing (Document)
-import Html exposing (Html, button, div, text, h1, h3, input, span, br)
+import Html exposing (Html, button, div, text, h1, h3, input, span, textarea)
 import Html.Events exposing (onClick, onInput)
 import Html.Attributes exposing (..)
 import List exposing (map,head,tail)
@@ -83,7 +83,7 @@ view model =
   , body =
     [
       div []
-        [ input [ placeholder "Text to render", value model.content, onInput Change ] []
+        [ [ textarea [ rows 15, cols 50, placeholder "Text to render", value model.content, onInput Change ] []
         , h3 [ class "css-title" ] [text "Tokens:"]
         , div [ class "expression-builder" ] [ text (Tokenizer.tokenizePrint(model.tokens))]
         , h3 [ class "css-title" ] [text "Parse Tree:"]
