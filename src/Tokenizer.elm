@@ -25,9 +25,11 @@ operator str =
                          then TokAnd
                      else if (str == "||")
                          then TokOr
+                     else if (str == "?")
+                         then TokHole
                      else TokInvalid
 
-operators = ["+", "-", "*", "=", "==", "&&", "||"]
+operators = ["+", "-", "*", "=", "==", "&&", "||", "?"]
 
 isBoolean : String -> Bool
 isBoolean x =

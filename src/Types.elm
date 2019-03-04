@@ -1,6 +1,6 @@
 module Types exposing (..)
 
-type Token = TokPlus | TokMinus | TokTimes | TokAssign | TokEq | TokAnd | TokOr | TokLParen | TokRParen | TokVar String | TokConstInt Int | TokConstBool Bool | TokInvalid | TokEnd
+type Token = TokPlus | TokMinus | TokTimes | TokAssign | TokEq | TokAnd | TokOr | TokLParen | TokRParen | TokHole | TokVar String | TokConstInt Int | TokConstBool Bool | TokInvalid | TokEnd
 
 type Const = CBool Bool | CInt Int
 type Term = CTerm Const | VTerm String | Plus Term Term | Minus Term Term | Times Term Term | Eq Term Term | And Term Term | Or Term Term | EmptyTree
