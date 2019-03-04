@@ -59,11 +59,17 @@ update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
     Change newContent ->
+      let
+        c = newContent
+        t = Tokenizer.tokenize (String.words c)
+        p = Parser.parse t
+        r = genRenderTree model.renderTree.renderDepth model.env p
+      in
       ({ model |
-          content = newContent
-        , tokens = Tokenizer.tokenize (String.words newContent)
-        , parseTree = Parser.parse (Tokenizer.tokenize (String.words newContent))
-        , renderTree = genRenderTree model.renderTree.renderDepth model.env (Parser.parse (Tokenizer.tokenize (String.words newContent)))
+          content = c
+        , tokens = t
+        , parseTree = p
+        , renderTree = r
        }, Cmd.none)
     IncDepth -> ({ model | renderTree = genRenderTree (model.renderTree.renderDepth + 1) model.env model.parseTree }, Cmd.none)
     DecDepth -> ({ model | renderTree = genRenderTree (model.renderTree.renderDepth - 1) model.env model.parseTree }, Cmd.none)
@@ -83,7 +89,7 @@ view model =
   , body =
     [
       div []
-        [ [ textarea [ rows 15, cols 50, placeholder "Text to render", value model.content, onInput Change ] []
+        [ textarea [ rows 15, cols 50, placeholder "Text to render", value model.content, onInput Change ] []
         , h3 [ class "css-title" ] [text "Tokens:"]
         , div [ class "expression-builder" ] [ text (Tokenizer.tokenizePrint(model.tokens))]
         , h3 [ class "css-title" ] [text "Parse Tree:"]
