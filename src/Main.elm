@@ -50,7 +50,7 @@ update msg model =
         c = newContent
 
         t = Tokenizer.tokenize (map (String.words) (String.lines c))
-        p = Parser.parse [TokConstInt 5, TokPlus, TokConstInt 6, TokMinus, TokVar "a"] --Temporary, change later
+        p = Parser.parse [TokConstInt 5, TokPlus, TokConstInt 6, TokMinus, TokVar "a", TokAnd, TokConstBool True, TokOr, TokConstBool False] --Temporary, change later
         r = genRenderTree model.renderTree.renderDepth (lookup model.vars) p
       in
       ({ model |
@@ -77,30 +77,37 @@ view model =
   , body =
     [
       Html.node "link" [ Html.Attributes.rel "stylesheet", Html.Attributes.href "style.css" ] []
-      , div [class "tokenizer-parser-container"]
-        [ textarea [ rows 10, cols 50, placeholder "Text to render", value model.content, onInput Change ] []
-        , h3 [ class "css-title" ] [text "Tokens:"]
-        , div [class "expression-builder"] (printTknsLBL model.tokens)
-        --, div [ class "expression-builder" ] [ text (Tokenizer.printTokens(model.tokens))]
-        , h3 [ class "css-title" ] [text "Parse Tree:"]
-        , div [ class "expression-builder" ] [ text (toString(model.parseTree)) ]
+      , div [class "tokenizer-parser-title-container"]
+        [
+          div [class "textarea-container"]
+          [
+            h3 [ class "css-title" ] [text "Input Program:"]
+            , textarea [ rows 10, cols 50, placeholder "Text to render", value model.content, onInput Change ] []
+          ]
+          , div [class "tokenizer-parser-container"]
+          [
+            h3 [ class "css-title" ] [text "Tokens:"]
+            , div [class "expression-builder"] (printTknsLBL model.tokens)
+            --, div [ class "expression-builder" ] [ text (Tokenizer.printTokens(model.tokens))]
+            , h3 [ class "css-title" ] [text "Parse Tree:"]
+            , div [ class "expression-builder" ] [ text (toString(model.parseTree)) ]
+          ]
         ]
       , div [ class "flex-container" ]
-      [ div [class "tree-ui-container"]
+      [
+        div [class "tree-title-container"]
         [
-          div [class "tree-title-container"]
-          [
-            h3 [class "css-title"] [text "Derivation Tree:"]
-            , div [ class "tree-container" ] [ div [] [ renderTree (lookup model.vars) model.renderTree ] ]
-          ]
-          , div [ class "ui-div" ]
-          [ renderSummary model
+          h3 [class "css-title"] [text "Derivation Tree:"]
+          , div [ class "tree-container" ] [ div [] [ renderTree (lookup model.vars) model.renderTree ] ]
+        ]
+        , div [ class "ui-div" ]
+        [
+          renderSummary model
           , h3 [class "css-title"] [text "Depth:"]
           , div [ class "buttons" ]
             [ button [ onClick DecDepth ] [ text "-" ]
             , text ( String.fromInt model.renderTree.renderDepth )
             , button [ onClick IncDepth ] [ text "+" ] ]
-          ]
         ]
       ]
     ]

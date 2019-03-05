@@ -2,27 +2,40 @@ body {
     font-family: Consolas,monaco,monospace;
     font-size: 16pt;
     display: flex;
-    flex-direction :row;
+    flex-direction : column;
     justify-content: space-around;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
+}
+
+.tokenizer-parser-title-container {
+  display: flex;
+  flex-direction : row;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.textarea-container {
+  margin: 0 50px 0 50px;
 }
 
 .tokenizer-parser-container {
-  /* margin: 0 0 0 300px; */
+  margin: 0 50px 0 50px;
 }
 
 .flex-container {
-  /* margin: 0 300px 0 0; */
+  display: flex;
+  flex-direction : row;
+  justify-content: space-between;
+  flex-wrap: wrap;
 }
 
-.tree-ui-container {
-
-}
 
 .tree-title-container {
+  margin: 0 50px 0 50px;
 }
 
 .ui-div {
+  margin: 0 50px 0 50px;
 }
 
 .tree-container {
@@ -61,6 +74,7 @@ body {
 }
 
 .summary-title {
+    text-align:left;
     font-size: 16pt;
 }
 
