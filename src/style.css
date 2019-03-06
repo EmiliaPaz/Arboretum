@@ -24,8 +24,16 @@ body {
     padding-top: 5px;
 }
 
-.type-span {
+.type-checks {
     background-color: #BEE0EE;
+}
+
+.type-fails {
+    background-color: #FF6754;
+}
+
+.type-partial {
+    background-color: #FFE554;
 }
 
 .summary {

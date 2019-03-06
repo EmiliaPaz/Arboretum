@@ -150,8 +150,6 @@ typecheck2 env exp t =
       EmptyTree -> Node (None) []-}
 
 
-type CheckResult = Checks VType | Fails VType VType VType | Partial VType | Invalid
-
 checkResultToString : CheckResult -> String
 checkResultToString r =
   case r of
@@ -220,7 +218,10 @@ checkSig sig args =
                       _        -> checkSig rsig rargs
                   False -> Fails s t final
               
-              Invalid -> Invalid
+              Invalid ->
+                case checkSig rsig rargs of
+                  Checks t2 -> Partial t2
+                  _         -> checkSig rsig rargs
 
 
 

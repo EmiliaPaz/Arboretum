@@ -18,3 +18,5 @@ type alias Var =
   , term: Term }
 
 type alias Env = (String -> Maybe Term)
+
+type CheckResult = Checks VType | Fails VType VType VType | Partial VType | Invalid
