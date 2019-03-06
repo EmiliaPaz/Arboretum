@@ -48,7 +48,6 @@ init _ =
 --testVars = [{ name = "a", term = CTerm (CInt 5)}]
 --testTerm = And (Eq (Times (Plus (CTerm (CInt 5)) (CTerm (CInt 1))) (CTerm (CInt 7))) (Times (CTerm (CInt 21)) (VTerm "a"))) (CTerm (CBool True))
 failTerm = Or (Eq (CTerm (CInt 1)) (CTerm (CBool True))) (CTerm (CBool False))
---testDepth = 3
 
 -- UPDATE
 
@@ -131,7 +130,7 @@ renderTerm : Env -> Term -> Html Msg
 renderTerm e t =
   div [ class "text-div" ]
   [ text (Render.termToString t ++ " : ")
-  , span [ class "type-span" ] [ text (Render.typeToString (Render.typecheck3 e t)) ]
+  , span [ class "type-span" ] [ text (Render.checkResultToString (Render.typecheck3 e t)) ]
   ]
 
 

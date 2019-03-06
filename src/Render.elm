@@ -43,12 +43,11 @@ termToString t =
     EmptyTree -> ""
 
 
-typeToString : Maybe VType -> String
+typeToString : VType -> String
 typeToString t =
   case t of
-    Just TBool -> "Bool"
-    Just TInt  -> "Int"
-    Nothing    -> "Type Error"
+    TBool -> "Bool"
+    TInt  -> "Int"
 
 
 valToString : Maybe Val -> String
@@ -117,7 +116,7 @@ typecheck e t =
 
 -- experimental rewrite of typecheck to provide more information
 
-type TypeResult = Checks VType | Fails VType VType | None
+{-type TypeResult = Checks VType | Fails VType VType | None
 
 testTypes : VType -> VType -> TypeResult
 testTypes exp got =
@@ -148,36 +147,85 @@ typecheck2 env exp t =
       Eq x y -> Node (test TBool) [check TInt x, check TInt y]
       And x y -> Node (test TBool) [check TBool x, check TBool y]
       Or x y -> Node (test TBool) [check TBool x, check TBool y]
-      EmptyTree -> Node (None) []
+      EmptyTree -> Node (None) []-}
 
+
+type CheckResult = Checks VType | Fails VType VType VType | Partial VType | Invalid
+
+checkResultToString : CheckResult -> String
+checkResultToString r =
+  case r of
+    Checks t ->
+      typeToString t
+
+    Fails exp got out ->
+      "Expected: " ++ typeToString exp ++ ", Got: " ++ typeToString got
+    
+    Partial t ->
+      "Partial " ++ typeToString t
+    
+    Invalid ->
+      "Invalid"
+
+
+last : List a -> Maybe a
+last l =
+  case l of
+    []      -> Nothing
+    [x]     -> Just x
+    x :: xs -> last xs
 
 -- checks a function signature `sig` against a list of argument types `args`
-checkSig : List VType -> List (Maybe VType) -> Maybe VType
+checkSig : List VType -> List CheckResult -> CheckResult
 checkSig sig args =
   case sig of
-    []        -> Nothing
+    []        -> Invalid
 
     s :: rsig ->
-      case args of
-        [] ->
-          case sig of
-            []  -> Nothing
-            [t] -> Just s
-            {- while we have no currying this returns Nothing, but eventually it
-              should return the curried type -}
-            _   -> Nothing
-        
-        a :: rargs ->
-          case a of
-            Just t ->
-              case t == s of
-                True  -> checkSig rsig rargs
-                False -> Nothing
+      let
+        final =
+          case last rsig of
+            Just lst -> lst
+            Nothing  -> s
 
-            Nothing -> Nothing
+      in
+        case args of
+          [] ->
+            case rsig of
+              [] -> Checks s
+              {- while we have no currying this returns Nothing, but eventually it
+                should return the curried type -}
+              _   -> Invalid
+          
+          a :: rargs ->
+            case a of
+              Checks t ->
+                case t == s of
+                  True  -> checkSig rsig rargs
+                  False -> Fails s t final
+              
+              Fails exp got out ->
+                case out == s of
+                  True  ->
+                    case checkSig rsig rargs of
+                      Checks t2 -> Partial t2
+                      _        -> checkSig rsig rargs
+                  False -> Fails s out final
+
+              Partial t ->
+                case t == s of
+                  True  ->
+                    case checkSig rsig rargs of
+                      Checks t2 -> Partial t2
+                      _        -> checkSig rsig rargs
+                  False -> Fails s t final
+              
+              Invalid -> Invalid
 
 
-typecheck3 : Env -> Term -> Maybe VType
+
+
+typecheck3 : Env -> Term -> CheckResult
 typecheck3 env t =
   let
     -- curry environment into the typechecker right away
@@ -214,7 +262,13 @@ typecheck3 env t =
         Or x y    -> [check x, check y]
         EmptyTree -> []
   in
-    checkSig sig args
+    case t of
+      VTerm v ->
+        case env v of
+          Just sub -> typecheck3 env sub
+          Nothing  -> Invalid
+      
+      _ -> checkSig sig args
 
 
 tryBinFn : (a -> b -> c) -> Maybe a -> Maybe b -> Maybe c
