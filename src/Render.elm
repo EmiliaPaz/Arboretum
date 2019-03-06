@@ -118,7 +118,6 @@ typecheck e t =
 -- experimental rewrite of typecheck to provide more information
 
 type TypeResult = Checks VType | Fails VType VType | None
-type Tree a = Node a (List (Tree a))
 
 testTypes : VType -> VType -> TypeResult
 testTypes exp got =
@@ -150,6 +149,72 @@ typecheck2 env exp t =
       And x y -> Node (test TBool) [check TBool x, check TBool y]
       Or x y -> Node (test TBool) [check TBool x, check TBool y]
       EmptyTree -> Node (None) []
+
+
+-- checks a function signature `sig` against a list of argument types `args`
+checkSig : List VType -> List (Maybe VType) -> Maybe VType
+checkSig sig args =
+  case sig of
+    []        -> Nothing
+
+    s :: rsig ->
+      case args of
+        [] ->
+          case sig of
+            []  -> Nothing
+            [t] -> Just s
+            {- while we have no currying this returns Nothing, but eventually it
+              should return the curried type -}
+            _   -> Nothing
+        
+        a :: rargs ->
+          case a of
+            Just t ->
+              case t == s of
+                True  -> checkSig rsig rargs
+                False -> Nothing
+
+            Nothing -> Nothing
+
+
+typecheck3 : Env -> Term -> Maybe VType
+typecheck3 env t =
+  let
+    -- curry environment into the typechecker right away
+    check = typecheck3 env
+    sig =
+      case t of
+        CTerm c ->
+          case c of
+            CBool _ -> [TBool]
+            CInt _  -> [TInt]
+        
+        VTerm v ->
+          case env v of
+            Just sub -> []
+            Nothing -> []
+        
+        Plus _ _  -> [TInt, TInt, TInt]
+        Minus _ _ -> [TInt, TInt, TInt]
+        Times _ _ -> [TInt, TInt, TInt]
+        Eq _ _    -> [TInt, TInt, TBool]
+        And _ _   -> [TBool, TBool, TInt]
+        Or _ _    -> [TBool, TBool, TBool]
+        EmptyTree -> []
+    
+    args =
+      case t of
+        CTerm _   -> []
+        VTerm _   -> []
+        Plus x y  -> [check x, check y]
+        Minus x y -> [check x, check y]
+        Times x y -> [check x, check y]
+        Eq x y    -> [check x, check y]
+        And x y   -> [check x, check y]
+        Or x y    -> [check x, check y]
+        EmptyTree -> []
+  in
+    checkSig sig args
 
 
 tryBinFn : (a -> b -> c) -> Maybe a -> Maybe b -> Maybe c
