@@ -223,7 +223,7 @@ genRenderTree depth e t =
         Eq x y    -> RenderChildren [gTree x, gTree y]
         And x y   -> RenderChildren [gTree x, gTree y]
         Or x y    -> RenderChildren [gTree x, gTree y]
-        EmptyTree -> RenderChildren [gTree EmptyTree, gTree EmptyTree] --- not valid, just for debuging
+        EmptyTree -> RenderChildren []
 
   in
   { render = True
