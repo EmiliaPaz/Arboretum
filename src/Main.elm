@@ -23,11 +23,12 @@ main =
 -- MODEL
 
 type alias Model =
-  { content : String
-  , tokens  : List Token
-  , parseTree  : Term
-  , env        : Env
-  , renderTree : RenderTree
+  { content     : String
+  , tokens      : List Token
+  , parseTree   : Term
+  , env         : Env
+  , renderTree  : RenderTree
+  , renderDepth : Int
   }
 
 init : () -> (Model, Cmd Msg)
@@ -41,7 +42,7 @@ init _ =
     testDepth = 3
     testRender = genRenderTree testDepth testEnv testTerm
   in
-  ( { content = "", tokens = testTokens, parseTree = testTerm, env = testEnv, renderTree = testRender }, Cmd.none )
+  ( { content = "", tokens = testTokens, parseTree = testTerm, env = testEnv, renderTree = testRender, renderDepth = testDepth}, Cmd.none )
 
 -- test cases:
 --testVars = [{ name = "a", term = CTerm (CInt 5)}]
@@ -63,10 +64,10 @@ update msg model =
           content = newContent
         , tokens = Tokenizer.tokenize (String.words newContent)
         , parseTree = Parser.parse (Tokenizer.tokenize (String.words newContent))
-        , renderTree = genRenderTree model.renderTree.renderDepth model.env (Parser.parse (Tokenizer.tokenize (String.words newContent)))
+        , renderTree = genRenderTree model.renderDepth model.env (Parser.parse (Tokenizer.tokenize (String.words newContent)))
        }, Cmd.none)
-    IncDepth -> ({ model | renderTree = genRenderTree (model.renderTree.renderDepth + 1) model.env model.parseTree }, Cmd.none)
-    DecDepth -> ({ model | renderTree = genRenderTree (model.renderTree.renderDepth - 1) model.env model.parseTree }, Cmd.none)
+    IncDepth -> ({ model | renderTree = genRenderTree (model.renderDepth + 1) model.env model.parseTree }, Cmd.none)
+    DecDepth -> ({ model | renderTree = genRenderTree (model.renderDepth - 1) model.env model.parseTree }, Cmd.none)
 
 
 -- SUBSCRIPTIONS
@@ -98,7 +99,7 @@ view model =
         , h3 [class "css-title"] [text "Depth:"]
         , div [ class "buttons" ]
           [ button [ onClick DecDepth ] [ text "-" ]
-          , text ( String.fromInt model.renderTree.renderDepth )
+          , text ( String.fromInt model.renderDepth )
           , button [ onClick IncDepth ] [ text "+" ] ]
         ]
       ]
@@ -115,22 +116,22 @@ renderSummary model =
 
 renderTree : Env -> RenderTree -> Html Msg
 renderTree e t =
-  if t.render && t.renderDepth > 0 then
-    div [ class "tree-div" ] ( renderChildren e t.children ++ [ renderTerm e t.term ] )
-  else
-    div [] []
-
-
-renderChildren : Env -> RenderChildren -> List (Html Msg)
-renderChildren e (RenderChildren c) =
-  map (renderTree e) c
+  let
+    render = renderTree e
+  in
+    case t of
+      Node n children ->
+        if n.render then
+          div [ class "tree-div" ] ( map render children ++ [ renderTerm e n.term ] )
+        else
+          div [] []
 
 
 renderTerm : Env -> Term -> Html Msg
 renderTerm e t =
   div [ class "text-div" ]
   [ text (Render.termToString t ++ " : ")
-  , span [ class "type-span" ] [ text (Render.typeToString (Render.typecheck e t)) ]
+  , span [ class "type-span" ] [ text (Render.typeToString (Render.typecheck3 e t)) ]
   ]
 
 
@@ -151,13 +152,11 @@ lookup e s =
         Just v.term
       else lookup vs s
 
-type alias RenderTree =
-  { render: Bool
-  , renderDepth: Int
-  , term: Term
-  , children: RenderChildren}
+type alias RenderTree = Tree RenderNode
 
-type RenderChildren = RenderChildren (List RenderTree)
+type alias RenderNode = 
+  { render: Bool
+  , term: Term }
 
 genRenderTree : Int -> Env -> Term -> RenderTree
 genRenderTree depth e t =
@@ -166,21 +165,22 @@ genRenderTree depth e t =
     gTree = genRenderTree dnew e
     c =
       case t of
-        CTerm _   -> RenderChildren []
+        CTerm _   -> []
         VTerm x   ->
           case e x of
-            Just subst -> RenderChildren [gTree subst]
-            Nothing    -> RenderChildren []
-        Plus x y  -> RenderChildren [gTree x, gTree y]
-        Minus x y -> RenderChildren [gTree x, gTree y]
-        Times x y -> RenderChildren [gTree x, gTree y]
-        Eq x y    -> RenderChildren [gTree x, gTree y]
-        And x y   -> RenderChildren [gTree x, gTree y]
-        Or x y    -> RenderChildren [gTree x, gTree y]
-        EmptyTree -> RenderChildren [gTree EmptyTree, gTree EmptyTree] --- not valid, just for debuging
+            Just subst -> [gTree subst]
+            Nothing    -> []
+        Plus x y  -> [gTree x, gTree y]
+        Minus x y -> [gTree x, gTree y]
+        Times x y -> [gTree x, gTree y]
+        Eq x y    -> [gTree x, gTree y]
+        And x y   -> [gTree x, gTree y]
+        Or x y    -> [gTree x, gTree y]
+        EmptyTree -> [gTree EmptyTree, gTree EmptyTree] --- not valid, just for debuging
+
+    n = 
+      { render = (depth >= 0)
+      , term = t}
 
   in
-  { render = True
-  , renderDepth = depth
-  , term = t
-  , children = c}
+    Node n c

@@ -1,5 +1,7 @@
 module Types exposing (..)
 
+type Tree a = Node a (List (Tree a))
+
 type Token = TokPlus | TokMinus | TokTimes | TokAssign | TokEq | TokAnd | TokOr | TokLParen | TokRParen | TokVar String | TokConstInt Int | TokConstBool Bool | TokInvalid | TokEnd
 
 type Const = CBool Bool | CInt Int
