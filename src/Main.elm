@@ -175,7 +175,7 @@ genRenderTree depth e t =
         Eq x y    -> [gTree x, gTree y]
         And x y   -> [gTree x, gTree y]
         Or x y    -> [gTree x, gTree y]
-        EmptyTree -> [gTree EmptyTree, gTree EmptyTree] --- not valid, just for debuging
+        EmptyTree -> [] --- not valid, just for debuging
 
     n = 
       { render = (depth >= 0)
