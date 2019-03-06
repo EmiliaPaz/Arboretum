@@ -65,8 +65,16 @@ update msg model =
         , parseTree = Parser.parse (Tokenizer.tokenize (String.words newContent))
         , renderTree = genRenderTree model.renderDepth model.env (Parser.parse (Tokenizer.tokenize (String.words newContent)))
        }, Cmd.none)
-    IncDepth -> ({ model | renderTree = genRenderTree (model.renderDepth + 1) model.env model.parseTree }, Cmd.none)
-    DecDepth -> ({ model | renderTree = genRenderTree (model.renderDepth - 1) model.env model.parseTree }, Cmd.none)
+    IncDepth ->
+      ({ model | 
+          renderDepth = model.renderDepth + 1
+        , renderTree = genRenderTree (model.renderDepth + 1) model.env model.parseTree 
+       }, Cmd.none)
+    DecDepth ->
+      ({ model | 
+          renderDepth = model.renderDepth - 1
+        , renderTree = genRenderTree (model.renderDepth - 1) model.env model.parseTree 
+       }, Cmd.none)
 
 
 -- SUBSCRIPTIONS
@@ -128,9 +136,17 @@ renderTree e t =
 
 renderTerm : Env -> Term -> Html Msg
 renderTerm e t =
+  let
+    spanClass =
+      case Render.typecheck3 e t of
+        Checks _    -> "type-checks"
+        Fails _ _ _ -> "type-fails"
+        Partial _   -> "type-partial"
+        Invalid     -> "type-fails"
+  in
   div [ class "text-div" ]
   [ text (Render.termToString t ++ " : ")
-  , span [ class "type-span" ] [ text (Render.checkResultToString (Render.typecheck3 e t)) ]
+  , span [ class spanClass ] [ text (Render.checkResultToString (Render.typecheck3 e t)) ]
   ]
 
 
@@ -175,7 +191,7 @@ genRenderTree depth e t =
         Eq x y    -> [gTree x, gTree y]
         And x y   -> [gTree x, gTree y]
         Or x y    -> [gTree x, gTree y]
-        EmptyTree -> [] --- not valid, just for debuging
+        EmptyTree -> []
 
     n = 
       { render = (depth >= 0)
