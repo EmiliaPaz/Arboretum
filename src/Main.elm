@@ -194,7 +194,7 @@ genRenderTree depth e t =
         EmptyTree -> []
 
     n = 
-      { render = (depth >= 0)
+      { render = (depth > 0)
       , term = t}
 
   in
