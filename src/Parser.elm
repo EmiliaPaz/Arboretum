@@ -1,7 +1,8 @@
 module Parser exposing (..)
 
-import List exposing (head,tail)
+import List exposing (head,tail,take,drop,foldr)
 import Types exposing (..)
+import Debug exposing (toString)
 
 -------------------------------------- Parser --------------------------------------
 toMaybe : List Token -> Maybe (List Token)
@@ -14,9 +15,15 @@ fromMaybeList ls = case ls of
                   Nothing -> []
                   Just list -> list
 
-parse : List Token -> Term
-parse tokens = let (tree, toks) = expression tokens
-                in tree
+-- parse : List Token -> Term
+-- parse tokens = let (tree, toks) = expression tokens
+--                 in tree
+
+parse : List Token -> Var
+parse tokens = case take 2 tokens of
+                    [TokVar v,TokAssign] -> let (tree, toks) = expression (drop 2 tokens)
+                                                    in {name=v, term=tree}
+                    _                    -> {name="",term=EmptyTree}
 
 expression : List Token -> (Term, List Token)
 expression tokens = let (termTree, tokens2) = expr tokens
@@ -44,3 +51,6 @@ expr tokens =
         Just (TokMinus)       -> (EmptyTree, [])
         Just (TokTimes)       -> (EmptyTree, [])
         _                     -> (EmptyTree, [])
+
+printParseTrees : List Var -> String
+printParseTrees vars = List.foldr (\v s -> (toString v.term) ++ " " ++ s) "" vars
