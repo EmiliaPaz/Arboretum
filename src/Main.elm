@@ -1,5 +1,5 @@
 import Browser exposing (Document)
-import Html exposing (Html, button, div, text, h1, h3, input, span, textarea)
+import Html exposing (Html, button, div, text, h1, h3, input, span, textarea, br)
 import Html.Events exposing (onClick, onInput)
 import Html.Attributes exposing (..)
 import List exposing (map,head,tail)
@@ -54,7 +54,7 @@ init _ =
 
 type Msg
   -- = Change String | IncDepth RenderTree | DecDepth RenderTree
-  = Change String | IncDepth  | DecDepth 
+  = Change String | IncDepth  | DecDepth
 
 
 -- update : Msg -> Model -> (Model, Cmd Msg)
@@ -244,7 +244,7 @@ printRT : List Var -> List RenderTree -> List (Html Msg)
 printRT env vs =
   case vs of
     []-> [div [class "tkns-div"] [text ""]]
-    (l::ls) -> [div [] [ renderTree (lookup env) l ]] ++ (printRT env ls)
+    (l::ls) -> [div [] [ renderTree (lookup env) l ]] ++ [br[][]] ++ (printRT env ls)
 
 --
 -- printRT : List Var -> List RenderTree -> List (Html Msg)
