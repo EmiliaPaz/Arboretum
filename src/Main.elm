@@ -178,7 +178,8 @@ genRenderTree depth e t =
   let
     dnew = depth - 1
     gTree = genRenderTree dnew e
-    c =
+    checkStatus = Render.typecheck3 e t
+    children =
       case t of
         CTerm _   -> []
         VTerm x   ->
@@ -194,8 +195,15 @@ genRenderTree depth e t =
         EmptyTree -> []
 
     n = 
-      { render = (depth > 0)
-      , term = t}
+      -- always render render nodes that don't pass typecheck
+      case checkStatus of
+        Checks _ -> 
+          { render = (depth > 0)
+          , term = t}
+        
+        _ ->
+          { render = True
+          , term = t}
 
   in
-    Node n c
+    Node n children
