@@ -140,7 +140,7 @@ renderTerm e t =
     spanClass =
       case Render.typecheck3 e t of
         Checks _    -> "type-checks"
-        Fails _ _ _ -> "type-fails"
+        Fails _ _ _ _ -> "type-fails"
         Partial _   -> "type-partial"
         Invalid     -> "type-fails"
   in

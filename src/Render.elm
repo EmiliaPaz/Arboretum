@@ -156,8 +156,8 @@ checkResultToString r =
     Checks t ->
       typeToString t
 
-    Fails exp got out ->
-      "Expected: " ++ typeToString exp ++ ", Got: " ++ typeToString got
+    Fails argNum exp got out ->
+      "At argument " ++ String.fromInt argNum ++ " Expected: " ++ typeToString exp ++ ", Got: " ++ typeToString got
     
     Partial t ->
       "Partial " ++ typeToString t
@@ -174,8 +174,11 @@ last l =
     x :: xs -> last xs
 
 -- checks a function signature `sig` against a list of argument types `args`
-checkSig : List VType -> List CheckResult -> CheckResult
-checkSig sig args =
+checkSig : Int -> List VType -> List CheckResult -> CheckResult
+checkSig argNum sig args =
+  let
+    checkNext = checkSig (argNum + 1)
+  in
   case sig of
     []        -> Invalid
 
@@ -199,29 +202,29 @@ checkSig sig args =
             case a of
               Checks t ->
                 case t == s of
-                  True  -> checkSig rsig rargs
-                  False -> Fails s t final
+                  True  -> checkNext rsig rargs
+                  False -> Fails argNum s t final
               
-              Fails exp got out ->
+              Fails _ exp got out ->
                 case out == s of
                   True  ->
-                    case checkSig rsig rargs of
+                    case checkNext rsig rargs of
                       Checks t2 -> Partial t2
-                      _        -> checkSig rsig rargs
-                  False -> Fails s out final
+                      _        -> checkNext rsig rargs
+                  False -> Fails argNum s out final
 
               Partial t ->
                 case t == s of
                   True  ->
-                    case checkSig rsig rargs of
+                    case checkNext rsig rargs of
                       Checks t2 -> Partial t2
-                      _        -> checkSig rsig rargs
-                  False -> Fails s t final
+                      _        -> checkNext rsig rargs
+                  False -> Fails argNum s t final
               
               Invalid ->
-                case checkSig rsig rargs of
+                case checkNext rsig rargs of
                   Checks t2 -> Partial t2
-                  _         -> checkSig rsig rargs
+                  _         -> checkNext rsig rargs
 
 
 
@@ -269,7 +272,7 @@ typecheck3 env t =
           Just sub -> typecheck3 env sub
           Nothing  -> Invalid
       
-      _ -> checkSig sig args
+      _ -> checkSig 1 sig args
 
 
 tryBinFn : (a -> b -> c) -> Maybe a -> Maybe b -> Maybe c
