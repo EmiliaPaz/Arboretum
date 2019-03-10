@@ -87,7 +87,6 @@ view model =
             h3 [ class "css-title" ] [text "Tokens:"]
             , div [class "expression-builder"] (printTknsLBL model.tokens)
             , h3 [ class "css-title" ] [text "Parse Tree:"]
-            -- , div [ class "expression-builder" ] [ text (Parser.printParseTrees model.vars) ]
             , div [class "expression-builder"] (printPT model.vars)
           ]
         ]
@@ -181,7 +180,7 @@ genRenderTree depth e t =
         Eq x y    -> RenderChildren [gTree x, gTree y]
         And x y   -> RenderChildren [gTree x, gTree y]
         Or x y    -> RenderChildren [gTree x, gTree y]
-        EmptyTree -> RenderChildren []
+        _ -> RenderChildren []
 
   in
   { render = True
