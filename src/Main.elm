@@ -57,19 +57,9 @@ update msg model =
         , vars = v
         , renderTrees = rs
        }, Cmd.none)
-    IncDepth r env -> let rs = findRenderTree model.renderTrees r 1 env in (model, Cmd.none ) 
-    DecDepth r env-> let rs = findRenderTree model.renderTrees r -1 env in (model , Cmd.none ) 
-
-findRenderTree : List RenderTree -> RenderTree -> Int -> Env -> RenderTree
-findRenderTree renderTrees tree depth env = case renderTrees of
-  []      -> tree -- should never get here
-  (r::rs) -> if r.term == tree.term 
-              then let newR = genRenderTree (r.renderDepth + 1) env r.term
-                    in { r | render = newR.render, renderDepth = newR.renderDepth, term = newR.term, children = newR.children } 
-              else findRenderTree rs tree depth env
-              
-
-
+    IncDepth r env -> let rts = newRenderTree model.renderTrees [] r 1 env in ({model | renderTrees = rts}, Cmd.none ) 
+    DecDepth r env-> let rts = newRenderTree model.renderTrees [] r -1 env in ({model | renderTrees = rts} , Cmd.none ) 
+            
 
 -- SUBSCRIPTIONS
 subscriptions : Model -> Sub Msg
@@ -105,19 +95,9 @@ view model =
       [
          div [class "tree-title-container"]
          [
-           h3 [class "css-title"] [text "Derivation Tree:"]
-           -- , div [ class "tree-container" ] [ div [] [ renderTree (lookup model.vars) model.renderTree ] ]
-             , div [class "tree-container"] (printRT model.vars model.renderTrees)
+            h3 [class "css-title"] [text "Derivation Tree:"]
+          , div [class "tree-container"] (printRT model.vars model.renderTrees)
          ]
-        -- , div [ class "ui-div" ]
-        -- [
-        --   renderSummary model
-        --   , h3 [class "css-title"] [text "Depth:"]
-        --   , div [ class "buttons" ]
-        --     [ button [ onClick DecDepth ] [ text "-" ]
-        --     , text ( String.fromInt model.renderTree.renderDepth )
-        --     , button [ onClick IncDepth ] [ text "+" ] ]
-        -- ]
       ]
     ]
  }
@@ -156,8 +136,16 @@ renderTerm e t =
   , span [ class "type-span" ] [ text (Render.typeToString (Render.typecheck e t)) ]
   ]
 
+-- Recursive function that dinds the correct tree in the old list of trees and changes it by creating a new list of render trees.
+newRenderTree : List RenderTree -> List RenderTree -> RenderTree -> Int -> Env -> List RenderTree
+newRenderTree olrdRTS newRTS tree depth env = case olrdRTS of
+  []      -> newRTS
+  (r::rs) -> if r.term == tree.term 
+              then let newRT = genRenderTree (r.renderDepth + depth) env r.term
+                    in newRenderTree rs (newRTS ++ [newRT]) tree depth env
+              else newRenderTree rs (newRTS ++ [r]) tree depth env
 
--------------------- NEW
+
 {-
 attempts to find a Term for s in e; currying lookup with a list of vars
 produces an Env
