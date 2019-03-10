@@ -149,11 +149,11 @@ printTknsLBL tkns =
     []-> [div [class "tkns-div"] [text ""]]
     (l::ls) -> [div [class "tkns-div"] [text (Tokenizer.tokenizePrint l)]] ++ (printTknsLBL ls)
 
-renderSummary : Model -> Html Msg
-renderSummary model =
+renderSummary : Env -> RenderTree -> Html Msg
+renderSummary envr r =
   div [ class "summary" ]
   [ h1 [ class "summary-title" ] [ text "Summary:" ]
-  -- , text ( "Evaluation result: " ++ Render.valToString (Render.eval (lookup model.vars) model.parseTree) )
+  , text ( "Evaluation result: " ++ Render.valToString (Render.eval envr r.term ) )
   ]
 
 
@@ -239,19 +239,19 @@ printPT vars =
 
 
 printRT : List Var -> List RenderTree -> List (Html Msg)
-printRT env vs =
-  case vs of
+printRT vars renderTrees =
+  case renderTrees of
     []-> [div [class "tkns-div"] [text ""]]
     (r::rs) -> [div [ class "flex-container" ]
                     [
-                            div [class "tree-container"] [ renderTree (lookup env) r ]
+                            div [class "tree-container"] [ renderTree (lookup vars) r ]
                         ,   div [ class "ui-div" ]
                             [
-                              -- renderSummary model
-                               h3 [class "css-title"] [text "Depth:"]
+                              renderSummary (lookup vars) r
+                              , h3 [class "css-title"] [text "Depth:"]
                               , div [ class "buttons" ]
                                 [ button [ onClick (DecDepth r)] [ text "-" ]
                                 , text ( String.fromInt r.renderDepth )
                                 , button [ onClick (IncDepth r)] [ text "+" ] ]
                             ]
-                    ]] ++ (printRT env rs)
+                    ]] ++ (printRT vars rs)
