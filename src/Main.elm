@@ -40,41 +40,21 @@ type alias Model =
   , tokens  : List (List Token)
   -- , parseTree  : List Term
   , vars       : List Var
-  , renderTree : List RenderTree
+  , renderTrees : List RenderTree
   }
 
 
 init : () -> (Model, Cmd Msg)
 init _ =
-  ( { content = "", tokens = [[]], vars = [], renderTree = [{ render=False, renderDepth=0, term=EmptyTree, children= RenderChildren []}] }, Cmd.none )
+  ( { content = "", tokens = [[]], vars = [], renderTrees = [{ render=False, renderDepth=0, term=EmptyTree, children= RenderChildren []}] }, Cmd.none )
 
 
 
 -- UPDATE
 
 type Msg
-  -- = Change String | IncDepth RenderTree | DecDepth RenderTree
-  = Change String | IncDepth  | DecDepth
-
-
--- update : Msg -> Model -> (Model, Cmd Msg)
--- update msg model =
---   case msg of
---     Change newContent ->
---       let
---         c = newContents
---         t = Tokenizer.tokenize (map (String.words) (String.lines c))
---         p = Parser.parse [TokConstInt 5, TokPlus, TokConstInt 6, TokMinus, TokVar "a", TokAnd, TokConstBool True, TokOr, TokConstBool False] --Temporary, change later
---         r = genRenderTree model.renderTree.renderDepth (lookup model.vars) p
---       in
---       ({ model |
---           content = c
---         , tokens = t
---         , parseTree = p
---         , renderTree = r
---        }, Cmd.none)
---     IncDepth -> ({ model | renderTree = genRenderTree (model.renderTree.renderDepth + 1) (lookup model.vars) model.parseTree }, Cmd.none)
---     DecDepth -> ({ model | renderTree = genRenderTree (model.renderTree.renderDepth - 1) (lookup model.vars) model.parseTree }, Cmd.none)
+  = Change String | IncDepth RenderTree | DecDepth RenderTree
+  -- = Change String | IncDepth  | DecDepth
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -84,22 +64,33 @@ update msg model =
         c = newContent
         t = Tokenizer.tokenize (map (String.words) (String.lines c))
         v = map Parser.parse t
-        r = map (\vs -> genRenderTree 3 (lookup v) vs.term ) v
+        rs = map (\vs -> genRenderTree 3 (lookup v) vs.term ) v
       in
       ({ model |
           content = c
         , tokens = t
         , vars = v
-        , renderTree = r
+        , renderTrees = rs
        }, Cmd.none)
-    -- IncDepth r -> ({ model | renderTree = genRenderTree (r.renderDepth + 1) (lookup model.vars) r.term }, Cmd.none) -- for the renderTree == r
-    -- DecDepth r -> ({ model | renderTree = genRenderTree (r.renderDepth - 1) (lookup model.vars) r.term }, Cmd.none) -- for the renderTree == r
-    -- IncDepth r -> ({ model | map (\rt -> if r == rt then rt = genRenderTree (r.renderDepth + 1) (lookup model.vars) r.term }, Cmd.none) renderTree ) -- for the renderTree == r
-    -- DecDepth r -> ({ model | map (\rt -> if r == rt then rt = genRenderTree (r.renderDepth - 1) (lookup model.vars) r.term }, Cmd.none) renderTree ) -- for the renderTree == r
-    IncDepth -> ({ model | content = ""  }, Cmd.none)
-    DecDepth -> ({ model | content = "" }, Cmd.none)
+    IncDepth r -> let rs = findRenderTree model.renderTrees r 1 in (model, Cmd.none ) 
+    DecDepth r -> let rs = findRenderTree model.renderTrees r -1 in (model, Cmd.none ) 
+    -- IncDepth r -> let 
+    --                 rs = model.renderTrees
+    --                 updateRenderTree = {r | }
+    --               in ({ model | renderTrees = rs}, Cms.none ) 
+    -- IncDepth -> ({ model | content = ""  }, Cmd.none)
+    -- DecDepth -> ({ model | content = "" }, Cmd.none)
 
+-- changeDepthTree : List RenderTree -> RenderTree -> Int -> List RenderTree
+-- changeDepthTree renderTrees tree depth = let temp = case (findRenderTree renderTrees tree) of
+--                                                       Nothing -> {}
+--                                                       Just r  -> { r | renderDepth = r.renderDepth + depth }
+--                                          in renderTrees
 
+findRenderTree : List RenderTree -> RenderTree -> Int -> Maybe RenderTree
+findRenderTree renderTrees tree depth = case renderTrees of
+  []      -> Nothing
+  (r::rs) -> if r.term == tree.term then Just { r | renderDepth = r.renderDepth + depth } else findRenderTree rs tree depth
 
 -- SUBSCRIPTIONS
 subscriptions : Model -> Sub Msg
@@ -137,7 +128,7 @@ view model =
          [
            h3 [class "css-title"] [text "Derivation Tree:"]
            -- , div [ class "tree-container" ] [ div [] [ renderTree (lookup model.vars) model.renderTree ] ]
-             , div [class "tree-container"] (printRT model.vars model.renderTree)
+             , div [class "tree-container"] (printRT model.vars model.renderTrees)
          ]
         -- , div [ class "ui-div" ]
         -- [
@@ -240,27 +231,27 @@ printPT vars =
     (l::ls) -> [div [class "tkns-div"] [text (toString l.term)]] ++ (printPT ls)
 
 
-printRT : List Var -> List RenderTree -> List (Html Msg)
-printRT env vs =
-  case vs of
-    []-> [div [class "tkns-div"] [text ""]]
-    (l::ls) -> [div [] [ renderTree (lookup env) l ]] ++ [br[][]] ++ (printRT env ls)
-
---
 -- printRT : List Var -> List RenderTree -> List (Html Msg)
 -- printRT env vs =
 --   case vs of
 --     []-> [div [class "tkns-div"] [text ""]]
---     (l::ls) -> [div [ class "flex-container" ]
---                     [
---                             div [class "tree-container"] [ renderTree (lookup env) l ]
---                         ,   div [ class "ui-div" ]
---                             [
---                               -- renderSummary model
---                                h3 [class "css-title"] [text "Depth:"]
---                               , div [ class "buttons" ]
---                                 [ button [ onClick DecDepth l ] [ text "-" ]
---                                 , text ( String.fromInt l.renderDepth )
---                                 , button [ onClick IncDepth l ] [ text "+" ] ]
---                             ]
---                     ]] ++ (printRT env ls)
+--     (l::ls) -> [div [] [ renderTree (lookup env) l ]] ++ [br[][]] ++ (printRT env ls)
+
+
+printRT : List Var -> List RenderTree -> List (Html Msg)
+printRT env vs =
+  case vs of
+    []-> [div [class "tkns-div"] [text ""]]
+    (r::rs) -> [div [ class "flex-container" ]
+                    [
+                            div [class "tree-container"] [ renderTree (lookup env) r ]
+                        ,   div [ class "ui-div" ]
+                            [
+                              -- renderSummary model
+                               h3 [class "css-title"] [text "Depth:"]
+                              , div [ class "buttons" ]
+                                [ button [ onClick (DecDepth r)] [ text "-" ]
+                                , text ( String.fromInt r.renderDepth )
+                                , button [ onClick (IncDepth r)] [ text "+" ] ]
+                            ]
+                    ]] ++ (printRT env rs)
