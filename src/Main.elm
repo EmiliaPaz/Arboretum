@@ -22,23 +22,9 @@ main =
 
 -- MODEL
 
--- type alias Model =
---   { content : String
---   , tokens  : List (List Token)
---   , parseTree  : Term
---   , vars       : List Var
---   , renderTree : RenderTree
---   }
-
--- init : () -> (Model, Cmd Msg)
--- init _ =
---   ( { content = "", tokens = [], parseTree = EmptyTree, vars = [], renderTree = { render=False, renderDepth=0, term=EmptyTree, children= RenderChildren []} }, Cmd.none )
-
-
 type alias Model =
   { content : String
   , tokens  : List (List Token)
-  -- , parseTree  : List Term
   , vars       : List Var
   , renderTrees : List RenderTree
   }
@@ -53,8 +39,7 @@ init _ =
 -- UPDATE
 
 type Msg
-  = Change String | IncDepth RenderTree | DecDepth RenderTree
-  -- = Change String | IncDepth  | DecDepth
+  = Change String | IncDepth RenderTree Env | DecDepth RenderTree Env
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -72,25 +57,19 @@ update msg model =
         , vars = v
         , renderTrees = rs
        }, Cmd.none)
-    IncDepth r -> let rs = findRenderTree model.renderTrees r 1 in (model, Cmd.none ) 
-    DecDepth r -> let rs = findRenderTree model.renderTrees r -1 in (model, Cmd.none ) 
-    -- IncDepth r -> let 
-    --                 rs = model.renderTrees
-    --                 updateRenderTree = {r | }
-    --               in ({ model | renderTrees = rs}, Cms.none ) 
-    -- IncDepth -> ({ model | content = ""  }, Cmd.none)
-    -- DecDepth -> ({ model | content = "" }, Cmd.none)
+    IncDepth r env -> let rs = findRenderTree model.renderTrees r 1 env in (model, Cmd.none ) 
+    DecDepth r env-> let rs = findRenderTree model.renderTrees r -1 env in (model , Cmd.none ) 
 
--- changeDepthTree : List RenderTree -> RenderTree -> Int -> List RenderTree
--- changeDepthTree renderTrees tree depth = let temp = case (findRenderTree renderTrees tree) of
---                                                       Nothing -> {}
---                                                       Just r  -> { r | renderDepth = r.renderDepth + depth }
---                                          in renderTrees
+findRenderTree : List RenderTree -> RenderTree -> Int -> Env -> RenderTree
+findRenderTree renderTrees tree depth env = case renderTrees of
+  []      -> tree -- should never get here
+  (r::rs) -> if r.term == tree.term 
+              then let newR = genRenderTree (r.renderDepth + 1) env r.term
+                    in { r | render = newR.render, renderDepth = newR.renderDepth, term = newR.term, children = newR.children } 
+              else findRenderTree rs tree depth env
+              
 
-findRenderTree : List RenderTree -> RenderTree -> Int -> Maybe RenderTree
-findRenderTree renderTrees tree depth = case renderTrees of
-  []      -> Nothing
-  (r::rs) -> if r.term == tree.term then Just { r | renderDepth = r.renderDepth + depth } else findRenderTree rs tree depth
+
 
 -- SUBSCRIPTIONS
 subscriptions : Model -> Sub Msg
@@ -231,13 +210,6 @@ printPT vars =
     (l::ls) -> [div [class "tkns-div"] [text (toString l.term)]] ++ (printPT ls)
 
 
--- printRT : List Var -> List RenderTree -> List (Html Msg)
--- printRT env vs =
---   case vs of
---     []-> [div [class "tkns-div"] [text ""]]
---     (l::ls) -> [div [] [ renderTree (lookup env) l ]] ++ [br[][]] ++ (printRT env ls)
-
-
 printRT : List Var -> List RenderTree -> List (Html Msg)
 printRT vars renderTrees =
   case renderTrees of
@@ -250,8 +222,8 @@ printRT vars renderTrees =
                               renderSummary (lookup vars) r
                               , h3 [class "css-title"] [text "Depth:"]
                               , div [ class "buttons" ]
-                                [ button [ onClick (DecDepth r)] [ text "-" ]
+                                [ button [ onClick (DecDepth r (lookup vars)) ] [ text "-" ]
                                 , text ( String.fromInt r.renderDepth )
-                                , button [ onClick (IncDepth r)] [ text "+" ] ]
+                                , button [ onClick (IncDepth r (lookup vars)) ] [ text "+" ] ]
                             ]
                     ]] ++ (printRT vars rs)
