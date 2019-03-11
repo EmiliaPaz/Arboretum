@@ -50,49 +50,44 @@ parse tokens = case take 2 tokens of
 --                                             t2 -> let (expTree, tokens3) = expression t2 in (Eq termTree expTree, tokens3)
 --                         _ -> (termTree, tokens2)
 
-checkHole : List Token -> (Term, List Token)
-checkHole tokens = case head tokens of
-                  Just (TokHole)  -> (Missing,fromMaybeList(tail tokens))
-                  _               -> expr tokens
-
 twoSidedConnective : Term -> List Token -> (Term, Term, List Token)
 twoSidedConnective left tokens = case tokens of 
                               [] -> (left, Missing, [])
                               t2 -> let (expTree, tokens3) = expression t2 in (left, expTree, tokens3)
 
 expression : List Token -> (Term, List Token)
-expression tokens = let (termTree, tokens2) = checkHole tokens
+expression tokens = let (termTree, tokens2) = expr tokens
                       in case head tokens2 of
                         Just (TokPlus) ->  case twoSidedConnective termTree (fromMaybeList(tail tokens2)) of
-                                            (Missing, Missing, tokens3) -> (Plus MissingInt MissingInt, tokens3)
+                                            (Missing, Missing, tokens3) -> (Plus MissingInt MissingInt, tokens2)
                                             (left, Missing, tokens3) -> (Plus left MissingInt, tokens2)
-                                            (Missing, right, tokens3) -> (Plus MissingInt right, tokens3)
+                                            (Missing, right, tokens3) -> (Plus MissingInt right, tokens2)
                                             (left, right, tokens3) -> (Plus left right, tokens3)
                         Just (TokMinus) ->  case twoSidedConnective termTree (fromMaybeList(tail tokens2)) of
-                                            (Missing, Missing, tokens3) -> (Minus MissingInt MissingInt, tokens3)
+                                            (Missing, Missing, tokens3) -> (Minus MissingInt MissingInt, tokens2)
                                             (left, Missing, tokens3) -> (Minus left MissingInt, tokens2)
-                                            (Missing, right, tokens3) -> (Minus MissingInt right, tokens3)
+                                            (Missing, right, tokens3) -> (Minus MissingInt right, tokens2)
                                             (left, right, tokens3) -> (Minus left right, tokens3)
                         Just (TokTimes) ->  case twoSidedConnective termTree (fromMaybeList(tail tokens2)) of
-                                            (Missing, Missing, tokens3) -> (Times MissingInt MissingInt, tokens3)
+                                            (Missing, Missing, tokens3) -> (Times MissingInt MissingInt, tokens2)
                                             (left, Missing, tokens3) -> (Times left MissingInt, tokens2)
-                                            (Missing, right, tokens3) -> (Times MissingInt right, tokens3)
+                                            (Missing, right, tokens3) -> (Times MissingInt right, tokens2)
                                             (left, right, tokens3) -> (Times left right, tokens3)
                         Just (TokOr)    ->  case twoSidedConnective termTree (fromMaybeList(tail tokens2)) of
-                                            (Missing, Missing, tokens3) -> (Or MissingBool MissingBool, tokens3)
+                                            (Missing, Missing, tokens3) -> (Or MissingBool MissingBool, tokens2)
                                             (left, Missing, tokens3) -> (Or left MissingBool, tokens2)
-                                            (Missing, right, tokens3) -> (Or MissingBool right, tokens3)
+                                            (Missing, right, tokens3) -> (Or MissingBool right, tokens2)
                                             (left, right, tokens3) -> (Or left right, tokens3)
                         Just (TokAnd)   ->  case twoSidedConnective termTree (fromMaybeList(tail tokens2)) of
-                                            (Missing, Missing, tokens3) -> (And MissingBool MissingBool, tokens3)
+                                            (Missing, Missing, tokens3) -> (And MissingBool MissingBool, tokens2)
                                             (left, Missing, tokens3) -> (And left MissingBool, tokens2)
-                                            (Missing, right, tokens3) -> (And MissingBool right, tokens3)
-                                            (left, right, tokens3) -> (And left right, tokens3)
+                                            (Missing, right, tokens3) -> (And MissingBool right, tokens2)
+                                            (left, right, tokens3) -> (And left right, tokens2)
                         Just (TokEq)    ->  case twoSidedConnective termTree (fromMaybeList(tail tokens2)) of
-                                            (Missing, Missing, tokens3) -> (Eq MissingBool MissingBool, tokens3)
+                                            (Missing, Missing, tokens3) -> (Eq MissingBool MissingBool, tokens2)
                                             (left, Missing, tokens3) -> (Eq left MissingBool, tokens2)
-                                            (Missing, right, tokens3) -> (Eq MissingBool right, tokens3)
-                                            (left, right, tokens3) -> (Eq left right, tokens3)
+                                            (Missing, right, tokens3) -> (Eq MissingBool right, tokens2)
+                                            (left, right, tokens3) -> (Eq left right, tokens2)
                         _ -> (termTree, tokens2)
 
 
@@ -102,7 +97,7 @@ expr tokens =
         Just (TokLParen)      -> let (leftTree, rightTokens) = expression (fromMaybeList(tail tokens))
                                   in case head rightTokens of
                                     Just (TokRParen)  -> (leftTree, fromMaybeList(tail rightTokens))
-                                    _                 -> (EmptyTree, [])
+                                    _                 -> (leftTree, [])    --- PROBLEM!! don't doing the rest of the statement
         Just (TokConstInt i)  -> (CTerm (CInt i), fromMaybeList(tail tokens))
         Just (TokConstBool b) -> (CTerm (CBool b), fromMaybeList(tail tokens))
         Just (TokVar v)       -> (VTerm v, fromMaybeList(tail tokens))
@@ -112,6 +107,6 @@ expr tokens =
         Just (TokOr)          -> (MissingBool, tokens)
         Just (TokAnd)         -> (MissingBool, tokens)
         Just (TokEq)          -> (MissingBool, tokens)
-        Just (TokHole)        -> (Missing, tokens)
+        Just (TokHole)        -> (Missing,fromMaybeList(tail tokens))
         _                     -> (EmptyTree, tokens)
 
