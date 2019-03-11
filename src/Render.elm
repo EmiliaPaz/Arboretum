@@ -40,7 +40,7 @@ termToString t =
     Or t1 t2 ->
       "(" ++ (termToString t1) ++ " || " ++ (termToString t2) ++ ")"
 
-    EmptyTree -> ""
+    _ -> ""
 
 
 typeToString : Maybe VType -> String
@@ -112,7 +112,7 @@ typecheck e t =
     
     And x y -> filterBools (map (typecheck e) [x, y])
     Or x y -> filterBools (map (typecheck e) [x, y])
-    EmptyTree -> Nothing
+    _ -> Nothing
 
 
 tryBinFn : (a -> b -> c) -> Maybe a -> Maybe b -> Maybe c
@@ -198,4 +198,4 @@ eval e t =
     Or x y -> 
       wrapBool ( tryBinFn (||) (tryBool (evale x)) (tryBool (evale y)) )
 
-    EmptyTree -> Nothing
+    _ -> Nothing
