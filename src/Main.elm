@@ -180,11 +180,11 @@ renderSubtermsRec i ts c =
       [] -> [ text "" ]
       [t] ->
         case isFail of
-          True  -> [ span [class "error-subterm"] [text (Render.termToString t)] ]
+          True  -> [ span [class "error-subterm"] [text (Render.termToString t), renderErrorDiv c] ]
           False -> [ text (Render.termToString t) ]
       t :: ts2 ->
         case isFail of
-          True -> [ span [class "error-subterm"] [text (Render.termToString t)] ] ++
+          True -> [ span [class "error-subterm"] [text (Render.termToString t), renderErrorDiv c] ]  ++
             renderNext ts2 c
           False -> [ text (Render.termToString t) ] ++
             renderNext ts2 c
@@ -239,6 +239,19 @@ renderTermInline result t =
             text "rendering error"
       False ->
         text (Render.termToString t)
+
+
+renderErrorDiv : CheckResult -> Html Msg
+renderErrorDiv c =
+  case c of
+    Fails _ exp got out ->
+      let
+        expStr = Render.typeToString exp
+        gotStr = Render.typeToString got
+      in
+        div [class "error-details"] [ text ("Expected: " ++ expStr), br [] [], text ("Got: " ++ gotStr) ]
+    
+    _ -> div [class "error-details"] []
 
 
 {-
