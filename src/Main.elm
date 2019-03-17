@@ -1,5 +1,5 @@
 import Browser exposing (Document)
-import Html exposing (Html, button, div, text, h1, h3, input, span, br)
+import Html exposing (Html, button, div, text, h1, h3, input, span, textarea, br)
 import Html.Events exposing (onClick, onInput)
 import Html.Attributes exposing (..)
 import List exposing (map,head,tail)
@@ -23,58 +23,100 @@ main =
 -- MODEL
 
 type alias Model =
-  { content     : String
-  , tokens      : List Token
-  , parseTree   : Term
-  , env         : Env
-  , renderTree  : RenderTree
-  , renderDepth : Int
+  { content : String
+  , tokens  : List (List Token)
+  , vars       : List Var
+  , renderTreeInfos : List RenderTreeInfo
   }
+
 
 init : () -> (Model, Cmd Msg)
 init _ =
-  let
-    testVars = [{ name = "a", term = CTerm (CInt 5)}]
-    testInput = "( ( ( ( 5 + 1 ) * 7 ) == ( 21 * a ) ) && True )"
-    testTokens = Tokenizer.tokenize (String.words testInput)
-    testTerm = Parser.parse(testTokens)
-    testEnv = lookup testVars
-    testDepth = 3
-    testRender = genRenderTree testDepth testEnv testTerm
-  in
-  ( { content = "", tokens = testTokens, parseTree = testTerm, env = testEnv, renderTree = testRender, renderDepth = testDepth}, Cmd.none )
+  ( { content = ""
+    , tokens = [[]]
+    , vars = []
+    , renderTreeInfos = []
+    }
+  , Cmd.none )
 
--- test cases:
---testVars = [{ name = "a", term = CTerm (CInt 5)}]
---testTerm = And (Eq (Times (Plus (CTerm (CInt 5)) (CTerm (CInt 1))) (CTerm (CInt 7))) (Times (CTerm (CInt 21)) (VTerm "a"))) (CTerm (CBool True))
-failTerm = Or (Eq (CTerm (CInt 1)) (CTerm (CBool True))) (CTerm (CBool False))
+
 
 -- UPDATE
 
 type Msg
-  = Change String | IncDepth | DecDepth
-
+  = Change String | IncDepth Int | DecDepth Int
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
     Change newContent ->
+      let
+        c = newContent
+        t = Tokenizer.tokenize (map (String.words) (String.lines c))
+        v = map Parser.parse t
+        rs = genRenderInfos 3 v
+      in
       ({ model |
-          content = newContent
-        , tokens = Tokenizer.tokenize (String.words newContent)
-        , parseTree = Parser.parse (Tokenizer.tokenize (String.words newContent))
-        , renderTree = genRenderTree model.renderDepth model.env (Parser.parse (Tokenizer.tokenize (String.words newContent)))
+          content = c
+        , tokens = t
+        , vars = v
+        , renderTreeInfos = rs
        }, Cmd.none)
-    IncDepth ->
-      ({ model | 
-          renderDepth = model.renderDepth + 1
-        , renderTree = genRenderTree (model.renderDepth + 1) model.env model.parseTree 
-       }, Cmd.none)
-    DecDepth ->
-      ({ model | 
-          renderDepth = model.renderDepth - 1
-        , renderTree = genRenderTree (model.renderDepth - 1) model.env model.parseTree 
-       }, Cmd.none)
+
+    IncDepth id -> 
+      let
+        newRTs = filterUpdate (\x -> x.id == id) (\x -> {x | depth = x.depth + 1}) model.renderTreeInfos
+      in
+        ({model | renderTreeInfos = newRTs} , Cmd.none )
+
+    DecDepth id ->
+      let
+        newRTs = filterUpdate (\x -> x.id == id) (\x -> {x | depth = x.depth - 1}) model.renderTreeInfos
+      in
+        ({model | renderTreeInfos = newRTs} , Cmd.none )
+
+
+-- runs update function on items passing the filter function
+filterUpdate : (a -> Bool) -> (a -> a) -> List a -> List a
+filterUpdate cond upd xs =
+  map
+    (\x ->
+      if cond x then
+        upd x
+      else
+        x
+    )
+    xs
+
+
+{-
+Generates a list of render infos.  This function exists mostly so that render
+infos can recieve ids.
+-}
+{-genRenderInfosRec : Int -> Int -> List Var -> List RenderTreeInfo
+genRenderInfosRec i depth vars =
+  let
+    genNext = genRenderInfosRec (i + 1) depth
+  in
+    case vars of
+      []      -> []
+      v :: vs ->
+        [ { id = i
+          , var = v
+          , depth = depth
+          }
+        ] ++ genNext vs -}
+
+-- curry starting index into fn
+genRenderInfos : Int -> List Var -> List RenderTreeInfo
+genRenderInfos depth vars =
+  List.indexedMap 
+    ( \i var ->
+        { id = i
+        , var = var
+        , depth = depth
+        } )
+    vars
 
 
 -- SUBSCRIPTIONS
@@ -90,34 +132,44 @@ view model =
  { title = "Tree Assembly"
   , body =
     [
-      div []
-        [ input [ placeholder "Text to render", value model.content, onInput Change ] []
-        , h3 [ class "css-title" ] [text "Tokens:"]
-        , div [ class "expression-builder" ] [ text (Tokenizer.tokenizePrint(model.tokens))]
-        , h3 [ class "css-title" ] [text "Parse Tree:"]
-        , div [ class "expression-builder" ] [ text (toString(model.parseTree)) ]
+      Html.node "link" [ Html.Attributes.rel "stylesheet", Html.Attributes.href "style.css" ] []
+      , div [class "tokenizer-parser-title-container"]
+        [
+          div [class "textarea-container"]
+          [
+            h3 [ class "css-title" ] [text "Input Program:"]
+            , textarea [ rows 10, cols 50, placeholder "Text to render", value model.content, onInput Change ] []
+          ]
+          , div [class "tokenizer-parser-container"]
+          [
+            h3 [ class "css-title" ] [text "Tokens:"]
+            , div [class "expression-builder"] (printTknsLBL model.tokens)
+            , h3 [ class "css-title" ] [text "Parse Tree:"]
+            , div [class "expression-builder"] (printPT model.vars)
+          ]
         ]
-    , Html.node "link" [ Html.Attributes.rel "stylesheet", Html.Attributes.href "style.css" ] []
-    , div [ class "flex-container" ]
-      [ h3 [class "css-title"] [text "Rendered Tree:"]
-      ,  div [ class "tree-container" ] [ div [] [ renderTree model.env model.renderTree ] ]
-      , div [ class "ui-div" ]
-        [ renderSummary model
-        , h3 [class "css-title"] [text "Depth:"]
-        , div [ class "buttons" ]
-          [ button [ onClick DecDepth ] [ text "-" ]
-          , text ( String.fromInt model.renderDepth )
-          , button [ onClick IncDepth ] [ text "+" ] ]
-        ]
+      , div [ class "flex-container" ]
+      [
+         div [class "tree-title-container"]
+         [
+            h3 [class "css-title"] [text "Derivation Tree:"]
+          , div [class "tree-container"] (printRT model.vars model.renderTreeInfos)
+         ]
       ]
     ]
  }
 
-renderSummary : Model -> Html Msg
-renderSummary model =
+printTknsLBL : List (List Token) -> List (Html Msg)
+printTknsLBL tkns =
+  case tkns of
+    []-> [div [class "tkns-div"] [text ""]]
+    (l::ls) -> [div [class "tkns-div"] [text (Tokenizer.tokenizePrint l)]] ++ (printTknsLBL ls)
+
+renderSummary : Env -> RenderTree -> Html Msg
+renderSummary envr (Node rNode _) =
   div [ class "summary" ]
   [ h1 [ class "summary-title" ] [ text "Summary:" ]
-  , text ( "Evaluation result: " ++ Render.valToString (Render.eval model.env model.parseTree) )
+  , text ( "Evaluation result: " ++ Render.valToString (Render.eval envr rNode.term) )
   ]
 
 
@@ -163,7 +215,7 @@ listSubterms t =
     Eq x y ->    [x, y]
     And x y ->   [x, y]
     Or x y ->    [x, y]
-    EmptyTree -> []
+    _ ->         []
 
 renderSubtermsRec : Int -> List Term -> CheckResult -> List (Html Msg)
 renderSubtermsRec i ts c =
@@ -227,7 +279,8 @@ renderTermInline result t =
         Eq _ _    -> "=="
         And _ _   -> "&&"
         Or _ _    -> "||"
-        EmptyTree -> ""
+        _         -> ""
+
     subterms = renderSubterms argTerms result
   in
     case isOp of
@@ -253,6 +306,15 @@ renderErrorDiv c =
     
     _ -> div [class "error-details"] []
 
+-- Recursive function that finds the correct tree in the old list of trees and changes it by creating a new list of render trees.
+{-newRenderTree : List RenderTree -> List RenderTree -> RenderTree -> Int -> Env -> List RenderTree
+newRenderTree olrdRTS newRTS (Node nTerm _) depth env = case olrdRTS of
+  []      -> newRTS
+  ((Node rTerm _)::rs) -> if rTerm == nTerm 
+              then let newRT = genRenderTree (r.renderDepth + depth) env r.term
+                    in newRenderTree rs (newRTS ++ [newRT]) tree depth env
+              else newRenderTree rs (newRTS ++ [r]) tree depth env-}
+
 
 {-
 attempts to find a Term for s in e; currying lookup with a list of vars
@@ -276,6 +338,15 @@ type alias RenderNode =
   { render: Bool
   , term: Term }
 
+type alias RenderTreeInfo =
+  { id: Int
+  , var: Var
+  , depth: Int }
+
+genRenderTree2 : RenderTreeInfo -> Env -> RenderTree
+genRenderTree2 rtInfo env =
+  genRenderTree rtInfo.depth env rtInfo.var.term
+
 genRenderTree : Int -> Env -> Term -> RenderTree
 genRenderTree depth e t =
   let
@@ -295,7 +366,7 @@ genRenderTree depth e t =
         Eq x y    -> [gTree x, gTree y]
         And x y   -> [gTree x, gTree y]
         Or x y    -> [gTree x, gTree y]
-        EmptyTree -> []
+        _         -> []
 
     n = 
       -- always render render nodes that don't pass typecheck
@@ -310,3 +381,33 @@ genRenderTree depth e t =
 
   in
     Node n children
+
+
+printPT : List Var -> List (Html Msg)
+printPT vars =
+  case vars of
+    []-> [div [class "tkns-div"] [text ""]]
+    (l::ls) -> [div [class "tkns-div"] [text (toString l.term)]] ++ (printPT ls)
+
+
+printRT : List Var -> List RenderTreeInfo -> List (Html Msg)
+printRT vars rtInfos =
+  case rtInfos of
+    [] -> [div [class "tkns-div"] [text ""]]
+    (ri::rs) -> 
+      let 
+        rt = genRenderTree2 ri (lookup vars)
+      in
+        [div [ class "flex-container" ]
+                      [
+                              div [class "tree-container"] [ renderTree (lookup vars) rt ]
+                          ,   div [ class "ui-div" ]
+                              [
+                                renderSummary (lookup vars) rt
+                                , h3 [class "css-title"] [text "Depth:"]
+                                , div [ class "buttons" ]
+                                  [ button [ onClick (DecDepth ri.id) ] [ text "-" ]
+                                  , text ( String.fromInt ri.depth )
+                                  , button [ onClick (IncDepth ri.id) ] [ text "+" ] ]
+                              ]
+                      ]] ++ (printRT vars rs)

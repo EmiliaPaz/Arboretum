@@ -40,7 +40,7 @@ termToString t =
     Or t1 t2 ->
       "(" ++ (termToString t1) ++ " || " ++ (termToString t2) ++ ")"
 
-    EmptyTree -> ""
+    _ -> ""
 
 
 typeToString : VType -> String
@@ -111,7 +111,7 @@ typecheck e t =
     
     And x y -> filterBools (map (typecheck e) [x, y])
     Or x y -> filterBools (map (typecheck e) [x, y])
-    EmptyTree -> Nothing
+    _ -> Nothing
 
 
 -- experimental rewrite of typecheck to provide more information
@@ -252,7 +252,7 @@ typecheck3 env t =
         Eq _ _    -> [TInt, TInt, TBool]
         And _ _   -> [TBool, TBool, TBool]
         Or _ _    -> [TBool, TBool, TBool]
-        EmptyTree -> []
+        _         -> []
     
     args =
       case t of
@@ -264,7 +264,7 @@ typecheck3 env t =
         Eq x y    -> [check x, check y]
         And x y   -> [check x, check y]
         Or x y    -> [check x, check y]
-        EmptyTree -> []
+        _         -> []
   in
     case t of
       VTerm v ->
@@ -358,4 +358,4 @@ eval e t =
     Or x y -> 
       wrapBool ( tryBinFn (||) (tryBool (evale x)) (tryBool (evale y)) )
 
-    EmptyTree -> Nothing
+    _ -> Nothing
