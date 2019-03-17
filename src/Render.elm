@@ -157,7 +157,7 @@ checkResultToString r =
       typeToString t
 
     Fails argNum exp got out ->
-      "At argument " ++ String.fromInt argNum ++ " Expected: " ++ typeToString exp ++ ", Got: " ++ typeToString got
+      "Fails " ++ typeToString out
     
     Partial t ->
       "Partial " ++ typeToString t
@@ -250,7 +250,7 @@ typecheck3 env t =
         Minus _ _ -> [TInt, TInt, TInt]
         Times _ _ -> [TInt, TInt, TInt]
         Eq _ _    -> [TInt, TInt, TBool]
-        And _ _   -> [TBool, TBool, TInt]
+        And _ _   -> [TBool, TBool, TBool]
         Or _ _    -> [TBool, TBool, TBool]
         EmptyTree -> []
     

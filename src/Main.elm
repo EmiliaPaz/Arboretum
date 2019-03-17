@@ -143,14 +143,104 @@ renderTerm e t =
         Fails _ _ _ _ -> "type-fails"
         Partial _   -> "type-partial"
         Invalid     -> "type-fails"
+    checkResult = Render.typecheck3 e t
   in
-  div [ class "text-div" ]
-  [ text (Render.termToString t ++ " : ")
-  , span [ class spanClass ] [ text (Render.checkResultToString (Render.typecheck3 e t)) ]
-  ]
+    div [ class "text-div" ]
+    [ renderTermInline checkResult t 
+    , text " : "
+    , span [ class spanClass ] [ text (Render.checkResultToString checkResult) ]
+    ]
 
 
--------------------- NEW
+listSubterms : Term -> List Term
+listSubterms t =
+  case t of
+    CTerm _ ->   []
+    VTerm _ ->   []
+    Plus x y ->  [x, y]
+    Minus x y -> [x, y]
+    Times x y -> [x, y]
+    Eq x y ->    [x, y]
+    And x y ->   [x, y]
+    Or x y ->    [x, y]
+    EmptyTree -> []
+
+renderSubtermsRec : Int -> List Term -> CheckResult -> List (Html Msg)
+renderSubtermsRec i ts c =
+  let
+    renderNext = renderSubtermsRec (i + 1)
+    isFail =
+      case c of
+        Fails argNum exp got out ->
+          i == argNum
+        _ ->
+          False
+  in
+    case ts of
+      [] -> [ text "" ]
+      [t] ->
+        case isFail of
+          True  -> [ span [class "error-subterm"] [text (Render.termToString t)] ]
+          False -> [ text (Render.termToString t) ]
+      t :: ts2 ->
+        case isFail of
+          True -> [ span [class "error-subterm"] [text (Render.termToString t)] ] ++
+            renderNext ts2 c
+          False -> [ text (Render.termToString t) ] ++
+            renderNext ts2 c
+
+intersperse : a -> List a -> List a
+intersperse i xs =
+  case xs of
+    [] -> []
+    [x] -> [i, x]
+    x :: rem -> [i, x] ++ intersperse i rem
+
+renderSubterms : List Term -> CheckResult -> List (Html Msg)
+renderSubterms t c =
+  let
+    subterms = intersperse ( text " " ) ( renderSubtermsRec 1 t c )
+  in
+    case subterms of
+      x :: xs -> xs
+      _       -> []
+
+
+-- renders the inline portion of the term, which may contain spans
+renderTermInline : CheckResult -> Term -> Html Msg
+renderTermInline result t =
+  let
+    argTerms = listSubterms t
+    isOp =
+      case t of
+        CTerm _   -> False
+        VTerm _   -> False
+        EmptyTree -> False
+        _         -> True
+    opStr =
+      case t of
+        CTerm _   -> ""
+        VTerm _   -> ""
+        Plus _ _  -> "+"
+        Minus _ _ -> "-"
+        Times _ _ -> "*"
+        Eq _ _    -> "=="
+        And _ _   -> "&&"
+        Or _ _    -> "||"
+        EmptyTree -> ""
+    subterms = renderSubterms argTerms result
+  in
+    case isOp of
+      True -> 
+        case subterms of
+          x :: xs ->
+            span [] ([x, text (" " ++ opStr)] ++ xs)
+          _ ->
+            text "rendering error"
+      False ->
+        text (Render.termToString t)
+
+
 {-
 attempts to find a Term for s in e; currying lookup with a list of vars
 produces an Env

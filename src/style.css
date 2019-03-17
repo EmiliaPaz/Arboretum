@@ -36,6 +36,10 @@ body {
     background-color: #FFE554;
 }
 
+.error-subterm {
+    background-color: #FF6754;
+}
+
 .summary {
     text-align: center;
     font-size: 12pt;
