@@ -1,6 +1,7 @@
 module Render exposing (..)
 
 import List exposing (..)
+import List.Extra exposing (elemIndex, getAt)
 import Types exposing (..)
 
 -------------------------------------- Rendering --------------------------------------
@@ -138,6 +139,7 @@ last l =
     x :: xs -> last xs
 
 
+-- checks a function signature `sig` against a list of argument types `args`
 checkSig2 : List VType -> List CheckResult -> CheckResult
 checkSig2 sig args =
   let
@@ -153,35 +155,52 @@ checkSig2 sig args =
         args
     
     checks = map2 (\x y ->
-                    case x of
-                      Just y  -> x == y
-                      Nothing -> False
+                    case y of
+                      Just y2  -> x == y2
+                      Nothing -> True
                   ) sig outTypes
     {- this line is not correct! it should be `drop (length args) sig`, but
        won't be possible until our interpreter understands function types as
        a list of types -}
     remainder = head (drop (length args) sig)
-    partial = all (\x -> case x of
-                    Checks -> True
-                    _      -> False
+    partial = any (\x -> case x of
+                    Checks _ -> False
+                    _        -> True
                   ) args
+    
+    failIndex = elemIndex False checks
+    failExp =
+      case failIndex of
+        Just i  -> getAt i sig
+        Nothing -> Nothing
+    failGot =
+      case failIndex of
+        Just i ->
+          case getAt i outTypes of
+            Just (Just t) -> Just t
+            _             -> Nothing
+        _ -> Nothing
 
-    invalid = all (\x -> case x of
-                    Invalid -> False
-                    _       -> True
-                  ) args
+    
   in
-    if all (\a -> a) checks then
-      if not partial then
-        Checks remainder
-      else
-        Partial remainder
-    else
+    case remainder of
+      Just r  ->
+        if all (\a -> a) checks then
+          if partial then
+            Partial r
+          else
+            Checks r
+        else
+          case (failIndex, failExp, failGot) of
+            (Just i, Just exp, Just got) ->
+              Fails i exp got r
+            _ ->
+              Invalid
+
+      Nothing -> Invalid
 
 
-
-
--- checks a function signature `sig` against a list of argument types `args`
+{-
 checkSig : Int -> List VType -> List CheckResult -> CheckResult
 checkSig argNum sig args =
   let
@@ -233,8 +252,7 @@ checkSig argNum sig args =
                 case checkNext rsig rargs of
                   Checks t2 -> Partial t2
                   _         -> checkNext rsig rargs
-
-
+-}
 
 
 typecheck3 : Env -> Term -> CheckResult
@@ -280,7 +298,7 @@ typecheck3 env t =
           Just sub -> typecheck3 env sub
           Nothing  -> Invalid
       
-      _ -> checkSig 1 sig args
+      _ -> checkSig2 sig args
 
 
 tryBinFn : (a -> b -> c) -> Maybe a -> Maybe b -> Maybe c
