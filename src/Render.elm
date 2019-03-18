@@ -59,62 +59,6 @@ valToString v =
     Nothing        -> "Undefined"
 
 
--- returns input if input is Just VType, Nothing otherwise
-filterTypes : VType -> List (Maybe VType) -> Maybe VType
-filterTypes t xs = 
-  case xs of
-    [] ->
-      Nothing
-
-    [x] ->
-      if x == (Just t) then
-        x
-      else
-        Nothing
-
-    x :: rest ->
-      if x == (Just t) then
-        filterTypes t rest
-      else
-        Nothing
-
-
-filterInts = filterTypes TInt
-filterBools = filterTypes TBool
-
-
--- returns Just VType if the term typechecks, Nothing otherwise
-typecheck : Env -> Term -> Maybe VType
-typecheck e t =
-  case t of
-    CTerm c ->
-      case c of
-        CBool _ -> Just TBool
-        CInt _ -> Just TInt
-    
-    VTerm v -> 
-      case e v of
-        Just subst -> typecheck e subst
-        Nothing    -> Nothing
-    
-    -- binary int operators all have the same behavior
-    Plus x y  -> filterInts (map (typecheck e) [x, y])
-    Minus x y -> filterInts (map (typecheck e) [x, y])
-    Times x y -> filterInts (map (typecheck e) [x, y])
-
-    Eq x y ->
-      if filterInts(map (typecheck e) [x, y]) == Just TInt then
-        Just TBool
-      else if filterBools(map (typecheck e) [x, y]) == Just TBool then
-        Just TBool
-      else
-        Nothing
-    
-    And x y -> filterBools (map (typecheck e) [x, y])
-    Or x y -> filterBools (map (typecheck e) [x, y])
-    _ -> Nothing
-
-
 checkResultToString : CheckResult -> String
 checkResultToString r =
   case r of
@@ -140,8 +84,8 @@ last l =
 
 
 -- checks a function signature `sig` against a list of argument types `args`
-checkSig2 : List VType -> List CheckResult -> CheckResult
-checkSig2 sig args =
+checkSig : List VType -> List CheckResult -> CheckResult
+checkSig sig args =
   let
     outTypes =
       map
@@ -200,66 +144,11 @@ checkSig2 sig args =
       Nothing -> Invalid
 
 
-{-
-checkSig : Int -> List VType -> List CheckResult -> CheckResult
-checkSig argNum sig args =
-  let
-    checkNext = checkSig (argNum + 1)
-  in
-  case sig of
-    []        -> Invalid
-
-    s :: rsig ->
-      let
-        final =
-          case last rsig of
-            Just lst -> lst
-            Nothing  -> s
-
-      in
-        case args of
-          [] ->
-            case rsig of
-              [] -> Checks s
-              {- while we have no currying this returns Nothing, but eventually it
-                should return the curried type -}
-              _   -> Invalid
-          
-          a :: rargs ->
-            case a of
-              Checks t ->
-                case t == s of
-                  True  -> checkNext rsig rargs
-                  False -> Fails argNum s t final
-              
-              Fails _ exp got out ->
-                case out == s of
-                  True  ->
-                    case checkNext rsig rargs of
-                      Checks t2 -> Partial t2
-                      _        -> checkNext rsig rargs
-                  False -> Fails argNum s out final
-
-              Partial t ->
-                case t == s of
-                  True  ->
-                    case checkNext rsig rargs of
-                      Checks t2 -> Partial t2
-                      _        -> checkNext rsig rargs
-                  False -> Fails argNum s t final
-              
-              Invalid ->
-                case checkNext rsig rargs of
-                  Checks t2 -> Partial t2
-                  _         -> checkNext rsig rargs
--}
-
-
-typecheck3 : Env -> Term -> CheckResult
-typecheck3 env t =
+typecheck : Env -> Term -> CheckResult
+typecheck env t =
   let
     -- curry environment into the typechecker right away
-    check = typecheck3 env
+    check = typecheck env
     sig =
       case t of
         CTerm c ->
@@ -295,10 +184,10 @@ typecheck3 env t =
     case t of
       VTerm v ->
         case env v of
-          Just sub -> typecheck3 env sub
+          Just sub -> check sub
           Nothing  -> Invalid
       
-      _ -> checkSig2 sig args
+      _ -> checkSig sig args
 
 
 tryBinFn : (a -> b -> c) -> Maybe a -> Maybe b -> Maybe c

@@ -175,12 +175,12 @@ renderTerm : Env -> Term -> Html Msg
 renderTerm e t =
   let
     spanClass =
-      case Render.typecheck3 e t of
+      case Render.typecheck e t of
         Checks _    -> "type-checks"
         Fails _ _ _ _ -> "type-fails"
         Partial _   -> "type-partial"
         Invalid     -> "type-fails"
-    checkResult = Render.typecheck3 e t
+    checkResult = Render.typecheck e t
   in
     div [ class "text-div" ]
     [ renderTermInline checkResult t 
@@ -337,7 +337,7 @@ genRenderTree depth e t =
   let
     dnew = depth - 1
     gTree = genRenderTree dnew e
-    checkStatus = Render.typecheck3 e t
+    checkStatus = Render.typecheck e t
     children =
       case t of
         CTerm _   -> []
