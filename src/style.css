@@ -24,8 +24,9 @@ body {
 
 .flex-container {
   display: flex;
-  flex-direction : row;
+  flex-direction: row;
   justify-content: space-between;
+  align-items: space-between;
   flex-wrap: wrap;
 }
 
@@ -35,15 +36,10 @@ body {
 }
 
 .ui-div {
-  margin: 0 50px 0 50px;
 }
 
 .tree-container {
     text-align: center;
-}
-.button-container {
-    text-align: center;
-    margin-top: 50px;
 }
 
 .tree-div {
@@ -80,4 +76,8 @@ body {
 
 .expression-builder{
     font-size: 12pt;
+}
+
+.button-container {
+  text-align: right;
 }

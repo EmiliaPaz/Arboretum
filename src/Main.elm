@@ -57,9 +57,9 @@ update msg model =
         , vars = v
         , renderTrees = rs
        }, Cmd.none)
-    IncDepth r env -> let rts = newRenderTree model.renderTrees [] r 1 env in ({model | renderTrees = rts}, Cmd.none ) 
-    DecDepth r env-> let rts = newRenderTree model.renderTrees [] r -1 env in ({model | renderTrees = rts} , Cmd.none ) 
-            
+    IncDepth r env -> let rts = newRenderTree model.renderTrees [] r 1 env in ({model | renderTrees = rts}, Cmd.none )
+    DecDepth r env-> let rts = newRenderTree model.renderTrees [] r -1 env in ({model | renderTrees = rts} , Cmd.none )
+
 
 -- SUBSCRIPTIONS
 subscriptions : Model -> Sub Msg
@@ -90,12 +90,12 @@ view model =
             , div [class "expression-builder"] (printPT model.vars)
           ]
         ]
-      , div [ class "flex-container" ]
+      , div [ class "flexs-container" ]
       [
          div [class "tree-title-container"]
          [
             h3 [class "css-title"] [text "Derivation Tree:"]
-          , div [class "tree-container"] (printRT model.vars model.renderTrees)
+          , div [class "trees-container"] (printRT model.vars model.renderTrees)
          ]
       ]
     ]
@@ -139,7 +139,7 @@ renderTerm e t =
 newRenderTree : List RenderTree -> List RenderTree -> RenderTree -> Int -> Env -> List RenderTree
 newRenderTree olrdRTS newRTS tree depth env = case olrdRTS of
   []      -> newRTS
-  (r::rs) -> if r.term == tree.term 
+  (r::rs) -> if r.term == tree.term
               then let newRT = genRenderTree (r.renderDepth + depth) env r.term
                     in newRenderTree rs (newRTS ++ [newRT]) tree depth env
               else newRenderTree rs (newRTS ++ [r]) tree depth env
@@ -208,9 +208,13 @@ printRT vars renderTrees =
                             [
                               renderSummary (lookup vars) r
                               , h3 [class "css-title"] [text "Depth:"]
-                              , div [ class "buttons" ]
-                                [ button [ onClick (DecDepth r (lookup vars)) ] [ text "-" ]
-                                , text ( String.fromInt r.renderDepth )
-                                , button [ onClick (IncDepth r (lookup vars)) ] [ text "+" ] ]
+                              , div [class "button-container"]
+                              [
+                                div [ class "buttons" ]
+                                  [ button [ onClick (DecDepth r (lookup vars)) ] [ text "-" ]
+                                  , text ( String.fromInt r.renderDepth )
+                                  , button [ onClick (IncDepth r (lookup vars)) ] [ text "+" ] ]
+                              ]
+
                             ]
                     ]] ++ (printRT vars rs)
