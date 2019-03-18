@@ -93,21 +93,6 @@ filterUpdate cond upd xs =
 Generates a list of render infos.  This function exists mostly so that render
 infos can recieve ids.
 -}
-{-genRenderInfosRec : Int -> Int -> List Var -> List RenderTreeInfo
-genRenderInfosRec i depth vars =
-  let
-    genNext = genRenderInfosRec (i + 1) depth
-  in
-    case vars of
-      []      -> []
-      v :: vs ->
-        [ { id = i
-          , var = v
-          , depth = depth
-          }
-        ] ++ genNext vs -}
-
--- curry starting index into fn
 genRenderInfos : Int -> List Var -> List RenderTreeInfo
 genRenderInfos depth vars =
   List.indexedMap 

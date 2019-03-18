@@ -1,6 +1,6 @@
 module Render exposing (..)
 
-import List exposing (map)
+import List exposing (..)
 import Types exposing (..)
 
 -------------------------------------- Rendering --------------------------------------
@@ -114,42 +114,6 @@ typecheck e t =
     _ -> Nothing
 
 
--- experimental rewrite of typecheck to provide more information
-
-{-type TypeResult = Checks VType | Fails VType VType | None
-
-testTypes : VType -> VType -> TypeResult
-testTypes exp got =
-  case exp == got of
-    True  -> Checks exp
-    False -> Fails exp got
-
-typecheck2 : Env -> VType -> Term -> Tree TypeResult
-typecheck2 env exp t = 
-  let
-    check = typecheck2 env
-    test  = testTypes exp
-  in
-    case t of
-      CTerm x ->
-        case x of
-          CBool _ -> Node (test TBool) []
-          CInt  _ -> Node (test TInt) []
-      
-      VTerm x ->
-        case env x of
-          Just subst -> Node (test exp) [check exp subst]
-          Nothing    -> Node (None) []
-      
-      Plus  x y -> Node (test TInt) [check TInt x, check TInt y]
-      Minus x y -> Node (test TInt) [check TInt x, check TInt y]
-      Times x y -> Node (test TInt) [check TInt x, check TInt y]
-      Eq x y -> Node (test TBool) [check TInt x, check TInt y]
-      And x y -> Node (test TBool) [check TBool x, check TBool y]
-      Or x y -> Node (test TBool) [check TBool x, check TBool y]
-      EmptyTree -> Node (None) []-}
-
-
 checkResultToString : CheckResult -> String
 checkResultToString r =
   case r of
@@ -172,6 +136,50 @@ last l =
     []      -> Nothing
     [x]     -> Just x
     x :: xs -> last xs
+
+
+checkSig2 : List VType -> List CheckResult -> CheckResult
+checkSig2 sig args =
+  let
+    outTypes =
+      map
+        (\x ->
+          case x of
+            Checks t      -> Just t
+            Fails _ _ _ t -> Just t
+            Partial t     -> Just t
+            Invalid       -> Nothing
+        )
+        args
+    
+    checks = map2 (\x y ->
+                    case x of
+                      Just y  -> x == y
+                      Nothing -> False
+                  ) sig outTypes
+    {- this line is not correct! it should be `drop (length args) sig`, but
+       won't be possible until our interpreter understands function types as
+       a list of types -}
+    remainder = head (drop (length args) sig)
+    partial = all (\x -> case x of
+                    Checks -> True
+                    _      -> False
+                  ) args
+
+    invalid = all (\x -> case x of
+                    Invalid -> False
+                    _       -> True
+                  ) args
+  in
+    if all (\a -> a) checks then
+      if not partial then
+        Checks remainder
+      else
+        Partial remainder
+    else
+
+
+
 
 -- checks a function signature `sig` against a list of argument types `args`
 checkSig : Int -> List VType -> List CheckResult -> CheckResult
