@@ -137,7 +137,8 @@ checkSig sig args =
         else
           case (failIndex, failExp, failGot) of
             (Just i, Just exp, Just got) ->
-              Fails i exp got r
+              -- arbitrary decision to 1-index args, discuss?
+              Fails (i + 1) exp got r
             _ ->
               Invalid
 
