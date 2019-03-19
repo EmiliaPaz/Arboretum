@@ -133,12 +133,12 @@ view model =
             , div [class "expression-builder"] (printPT model.vars)
           ]
         ]
-      , div [ class "flex-container" ]
+      , div [ class "flexs-container" ]
       [
          div [class "tree-title-container"]
          [
             h3 [class "css-title"] [text "Derivation Tree:"]
-          , div [class "tree-container"] (printRT model.vars model.renderTreeInfos)
+          , div [class "trees-container"] (printRT model.vars model.renderTreeInfos)
          ]
       ]
     ]
@@ -295,7 +295,7 @@ renderErrorDiv c =
 {-newRenderTree : List RenderTree -> List RenderTree -> RenderTree -> Int -> Env -> List RenderTree
 newRenderTree olrdRTS newRTS (Node nTerm _) depth env = case olrdRTS of
   []      -> newRTS
-  ((Node rTerm _)::rs) -> if rTerm == nTerm 
+  (r::rs) -> if r.term == tree.term
               then let newRT = genRenderTree (r.renderDepth + depth) env r.term
                     in newRenderTree rs (newRTS ++ [newRT]) tree depth env
               else newRenderTree rs (newRTS ++ [r]) tree depth env-}
@@ -396,9 +396,12 @@ printRT vars rtInfos =
                               [
                                 renderSummary (lookup vars) rt
                                 , h3 [class "css-title"] [text "Depth:"]
-                                , div [ class "buttons" ]
-                                  [ button [ onClick (DecDepth ri.id) ] [ text "-" ]
-                                  , text ( String.fromInt ri.depth )
-                                  , button [ onClick (IncDepth ri.id) ] [ text "+" ] ]
+                                , div [class "button-container"]
+                                  [ div [ class "buttons" ]
+                                    [ button [ onClick (DecDepth ri.id) ] [ text "-" ]
+                                    , text ( String.fromInt ri.depth )
+                                    , button [ onClick (IncDepth ri.id) ] [ text "+" ]
+                                    ]
+                                  ]
                               ]
                       ]] ++ (printRT vars rs)
