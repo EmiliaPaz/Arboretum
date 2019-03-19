@@ -323,11 +323,17 @@ type alias RenderNode =
   { render: Bool
   , term: Term }
 
+{-
+RenderTreeInfo contains all of the information necessary to generate a
+RenderTree
+-}
 type alias RenderTreeInfo =
   { id: Int
   , var: Var
   , depth: Int }
 
+
+-- creates a render tree from a rtInfo and an environment
 genRenderTree2 : RenderTreeInfo -> Env -> RenderTree
 genRenderTree2 rtInfo env =
   genRenderTree rtInfo.depth env rtInfo.var.term
