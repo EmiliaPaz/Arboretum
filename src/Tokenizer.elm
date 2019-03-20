@@ -12,19 +12,19 @@ operator str =
                 "" -> TokInvalid
                 other ->
                     if (str == "+")
-                        then TokPlus
+                         then TTSC (TTSCInt TokPlus)
                      else if (str == "-")
-                         then TokMinus
+                         then TTSC (TTSCInt TokMinus)
                      else if (str == "*")
-                         then TokTimes
+                         then TTSC (TTSCInt TokTimes)
                      else if (str == "=")
                          then TokAssign
                      else if (str == "==")
-                         then TokEq
+                          then TTSC (TTSCBool TokEq)
                      else if (str == "&&")
-                         then TokAnd
+                          then TTSC (TTSCBool TokAnd)
                      else if (str == "||")
-                         then TokOr
+                          then TTSC (TTSCBool TokOr)
                      else if (str == "?")
                          then TokHole
                      else TokInvalid
