@@ -55,7 +55,6 @@ expression tokens = let (l, tokens2) = expr tokens
                                                 TTSCBool TokOr  -> (Or left right, tokens3)
                                                 TTSCBool TokAnd  -> (And left right, tokens3)
                                                 TTSCBool TokEq  -> (Eq left right, tokens3)
-
                         _ -> (l, tokens2)
 
 
@@ -69,11 +68,9 @@ expr tokens =
         Just (TokConstInt i)  -> (CTerm (CInt i), fromMaybeList(tail tokens))
         Just (TokConstBool b) -> (CTerm (CBool b), fromMaybeList(tail tokens))
         Just (TokVar v)       -> (VTerm v, fromMaybeList(tail tokens))
-
         Just (TTSC tsc)       -> case tsc of
                                   TTSCInt tsci  -> (MissingInt, tokens)
                                   TTSCBool tscb -> (MissingBool, tokens)
-
         Just (TokHole)        -> (Missing,fromMaybeList(tail tokens))
         _                     -> (EmptyTree, tokens)
 
