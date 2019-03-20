@@ -1,6 +1,7 @@
 module Render exposing (..)
 
-import List exposing (map)
+import List exposing (..)
+import List.Extra exposing (elemIndex, getAt)
 import Types exposing (..)
 
 -------------------------------------- Rendering --------------------------------------
@@ -43,12 +44,11 @@ termToString t =
     _ -> ""
 
 
-typeToString : Maybe VType -> String
+typeToString : VType -> String
 typeToString t =
   case t of
-    Just TBool -> "Bool"
-    Just TInt  -> "Int"
-    Nothing    -> "Type Error"
+    TBool -> "Bool"
+    TInt  -> "Int"
 
 
 valToString : Maybe Val -> String
@@ -59,60 +59,136 @@ valToString v =
     Nothing        -> "Undefined"
 
 
--- returns input if input is Just VType, Nothing otherwise
-filterTypes : VType -> List (Maybe VType) -> Maybe VType
-filterTypes t xs = 
-  case xs of
-    [] ->
-      Nothing
+checkResultToString : CheckResult -> String
+checkResultToString r =
+  case r of
+    Checks t ->
+      typeToString t
 
-    [x] ->
-      if x == (Just t) then
-        x
-      else
-        Nothing
-
-    x :: rest ->
-      if x == (Just t) then
-        filterTypes t rest
-      else
-        Nothing
-
-
-filterInts = filterTypes TInt
-filterBools = filterTypes TBool
-
-
--- returns Just VType if the term typechecks, Nothing otherwise
-typecheck : Env -> Term -> Maybe VType
-typecheck e t =
-  case t of
-    CTerm c ->
-      case c of
-        CBool _ -> Just TBool
-        CInt _ -> Just TInt
+    Fails argNum exp got out ->
+      "Fails " ++ typeToString out
     
-    VTerm v -> 
-      case e v of
-        Just subst -> typecheck e subst
-        Nothing    -> Nothing
+    Partial t ->
+      "Partial " ++ typeToString t
     
-    -- binary int operators all have the same behavior
-    Plus x y  -> filterInts (map (typecheck e) [x, y])
-    Minus x y -> filterInts (map (typecheck e) [x, y])
-    Times x y -> filterInts (map (typecheck e) [x, y])
+    Invalid ->
+      "Invalid"
 
-    Eq x y ->
-      if filterInts(map (typecheck e) [x, y]) == Just TInt then
-        Just TBool
-      else if filterBools(map (typecheck e) [x, y]) == Just TBool then
-        Just TBool
-      else
-        Nothing
+
+last : List a -> Maybe a
+last l =
+  case l of
+    []      -> Nothing
+    [x]     -> Just x
+    x :: xs -> last xs
+
+
+-- checks a function signature `sig` against a list of argument types `args`
+checkSig : List VType -> List CheckResult -> CheckResult
+checkSig sig args =
+  let
+    outTypes =
+      map
+        (\x ->
+          case x of
+            Checks t      -> Just t
+            Fails _ _ _ t -> Just t
+            Partial t     -> Just t
+            Invalid       -> Nothing
+        )
+        args
     
-    And x y -> filterBools (map (typecheck e) [x, y])
-    Or x y -> filterBools (map (typecheck e) [x, y])
-    _ -> Nothing
+    checks = map2 (\x y ->
+                    case y of
+                      Just y2  -> x == y2
+                      Nothing -> True
+                  ) sig outTypes
+    {- this line is not correct! it should be `drop (length args) sig`, but
+       won't be possible until our interpreter understands function types as
+       a list of types -}
+    remainder = head (drop (length args) sig)
+    partial = any (\x -> case x of
+                    Checks _ -> False
+                    _        -> True
+                  ) args
+    
+    failIndex = elemIndex False checks
+    failExp =
+      case failIndex of
+        Just i  -> getAt i sig
+        Nothing -> Nothing
+    failGot =
+      case failIndex of
+        Just i ->
+          case getAt i outTypes of
+            Just (Just t) -> Just t
+            _             -> Nothing
+        _ -> Nothing
+
+    
+  in
+    case remainder of
+      Just r  ->
+        if all (\a -> a) checks then
+          if partial then
+            Partial r
+          else
+            Checks r
+        else
+          case (failIndex, failExp, failGot) of
+            (Just i, Just exp, Just got) ->
+              -- arbitrary decision to 1-index args, discuss?
+              Fails (i + 1) exp got r
+            _ ->
+              Invalid
+
+      Nothing -> Invalid
+
+
+typecheck : Env -> Term -> CheckResult
+typecheck env t =
+  let
+    -- curry environment into the typechecker right away
+    check = typecheck env
+    sig =
+      case t of
+        CTerm c ->
+          case c of
+            CBool _ -> [TBool]
+            CInt _  -> [TInt]
+        
+        VTerm v ->
+          case env v of
+            Just sub -> []
+            Nothing -> []
+        
+        Plus _ _  -> [TInt, TInt, TInt]
+        Minus _ _ -> [TInt, TInt, TInt]
+        Times _ _ -> [TInt, TInt, TInt]
+        Eq _ _    -> [TInt, TInt, TBool]
+        And _ _   -> [TBool, TBool, TBool]
+        Or _ _    -> [TBool, TBool, TBool]
+        _         -> []
+    
+    args =
+      case t of
+        CTerm _   -> []
+        VTerm _   -> []
+        Plus x y  -> [check x, check y]
+        Minus x y -> [check x, check y]
+        Times x y -> [check x, check y]
+        Eq x y    -> [check x, check y]
+        And x y   -> [check x, check y]
+        Or x y    -> [check x, check y]
+        _         -> []
+  in
+    case t of
+      VTerm v ->
+        case env v of
+          Just sub -> check sub
+          Nothing  -> Invalid
+      
+      _ -> checkSig sig args
 
 
 tryBinFn : (a -> b -> c) -> Maybe a -> Maybe b -> Maybe c

@@ -55,8 +55,34 @@ body {
     padding-top: 5px;
 }
 
-.type-span {
+.type-checks {
     background-color: #BEE0EE;
+}
+
+.type-fails {
+    background-color: #FF6754;
+}
+
+.type-partial {
+    background-color: #FFE554;
+}
+
+.error-subterm {
+    /* relative positioning is used here because an eror-details div needs to
+    use absolute positioning based on this element */
+    position: relative;
+    background-color: #FF6754;
+}
+
+.error-subterm:hover .error-details {
+    display: block;
+}
+
+.error-details {
+    position: absolute;
+    bottom: 50px;
+    background-color: #FF6754;
+    display: none;
 }
 
 .summary {
