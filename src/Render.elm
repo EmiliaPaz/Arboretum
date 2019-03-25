@@ -42,8 +42,10 @@ termToString t =
       "(" ++ (termToString t1) ++ " || " ++ (termToString t2) ++ ")"
 
     Lam t1 t2 ->
-      "(/" ++ (termToString t1) ++ "-> " ++ (termToString t2) ++ ")ß"
+      "(/" ++ (termToString t1) ++ "-> " ++ (termToString t2) ++ ")"
 
+    App t1 t2 ->
+      "(" ++ (termToString t1) ++ (termToString t2) ++ ")"
     _ -> ""
 
 
@@ -52,7 +54,8 @@ typeToString t =
   case t of
     TBool -> "Bool"
     TInt  -> "Int"
-
+    TInt_TInt_TInt -> "Int -> Int -> Int"
+    TBool_TBool_TBool -> "Bool -> Bool -> Bool"
 
 valToString : Maybe Val -> String
 valToString v =
@@ -148,30 +151,88 @@ checkSig sig args =
       Nothing -> Invalid
 
 
+substitute : Term -> Term -> String -> Term
+substitute old new n =
+  case old of
+    CTerm c -> CTerm c
+    VTerm v -> if n == v then new else VTerm v
+    Lam t1 t2 ->
+      case t1 of
+        VTerm v -> if n == v then Lam t1 t2 else Lam t1 (substitute t2 new n)
+        _ -> Lam t1 t2
+    App t1 t2 -> App (substitute t1 new n) (substitute t2 new n)
+    Plus t1 t2 -> Plus (substitute t1 new n) (substitute t2 new n)
+    Minus t1 t2 -> Minus (substitute t1 new n) (substitute t2 new n)
+    Times t1 t2 -> Times (substitute t1 new n) (substitute t2 new n)
+    Eq t1 t2 -> Eq (substitute t1 new n) (substitute t2 new n)
+    And t1 t2 -> And (substitute t1 new n) (substitute t2 new n)
+    Or t1 t2 -> Or (substitute t1 new n) (substitute t2 new n)
+    any -> any
+
+generateScope : String -> Term -> List Var
+generateScope s t = {name = s, term = t} :: []
+
+--typeCheckLambda : Env -> Term -> CheckResult
+--typeCheckLambda env t ->
+--  case t of
+--    Lam a b ->
+--      let scope = generateScope a
+--    _ -> Invalid
+
+typeCheckApp : Env -> Term -> CheckResult
+typeCheckApp env t =
+  case t of
+    App x y ->
+      case x of
+        Lam w z ->
+          case w of
+            VTerm n -> typecheck env (substitute z y n)
+            _ -> Invalid
+        VTerm v ->
+          let lambda = env v
+            in case lambda of
+              Just (Lam w z) ->
+                case w of
+                  VTerm n -> typecheck env (substitute z y n)
+                  _ -> Invalid
+              _ -> Invalid
+        _ -> Invalid
+    _ -> Invalid
+
+getFuncVType : List VType -> VType
+getFuncVType vs =
+  case vs of
+    [TInt, TInt, TInt] -> TInt_TInt_TInt
+    [TBool, TBool, TBool] -> TBool_TBool_TBool
+    _ -> TInt -- Sorry, I couldn't think of a better default value, to fix.
+
+getTypeSignature : Env -> Term -> List VType
+getTypeSignature env t =
+  case t of
+    CTerm c ->
+      case c of
+        CBool _ -> [TBool]
+        CInt _  -> [TInt]
+
+    VTerm v ->
+      case env v of
+        Just sub -> []
+        Nothing -> []
+
+    Plus _ _  -> [TInt, TInt, TInt]
+    Minus _ _ -> [TInt, TInt, TInt]
+    Times _ _ -> [TInt, TInt, TInt]
+    Eq _ _    -> [TInt, TInt, TBool]
+    And _ _   -> [TBool, TBool, TBool]
+    Or _ _    -> [TBool, TBool, TBool]
+    _         -> []
+
 typecheck : Env -> Term -> CheckResult
 typecheck env t =
   let
     -- curry environment into the typechecker right away
     check = typecheck env
-    sig =
-      case t of
-        CTerm c ->
-          case c of
-            CBool _ -> [TBool]
-            CInt _  -> [TInt]
-
-        VTerm v ->
-          case env v of
-            Just sub -> []
-            Nothing -> []
-
-        Plus _ _  -> [TInt, TInt, TInt]
-        Minus _ _ -> [TInt, TInt, TInt]
-        Times _ _ -> [TInt, TInt, TInt]
-        Eq _ _    -> [TInt, TInt, TBool]
-        And _ _   -> [TBool, TBool, TBool]
-        Or _ _    -> [TBool, TBool, TBool]
-        _         -> []
+    sig = getTypeSignature env t
 
     args =
       case t of
@@ -183,6 +244,7 @@ typecheck env t =
         Eq x y    -> [check x, check y]
         And x y   -> [check x, check y]
         Or x y    -> [check x, check y]
+        App x y   -> [check x, check y]
         _         -> []
   in
     case t of
@@ -191,6 +253,9 @@ typecheck env t =
           Just sub -> check sub
           Nothing  -> Invalid
 
+      --Probably need to fix this
+      Lam a b -> Checks (getFuncVType (getTypeSignature env b))
+      App x y -> typeCheckApp env t
       _ -> checkSig sig args
 
 
@@ -276,5 +341,24 @@ eval e t =
 
     Or x y ->
       wrapBool ( tryBinFn (||) (tryBool (evale x)) (tryBool (evale y)) )
+
+    Lam x y ->
+      evale y
+
+    App x y ->
+      case x of
+        Lam w z ->
+          case w of
+            VTerm n -> evale (substitute z y n)
+            _ -> Nothing
+        VTerm v ->
+          let lambda = e v
+            in case lambda of
+              Just (Lam w z) ->
+                case w of
+                  VTerm n -> evale (substitute z y n)
+                  _ -> Nothing
+              _ -> Nothing
+        _ -> Nothing
 
     _ -> Nothing

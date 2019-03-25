@@ -57,22 +57,38 @@ expression tokens = let (l, tokens2) = expr tokens
                                                 TTSCBool TokEq  -> (Eq left right, tokens3)
                         Just TokArrow -> let (body, tokens4) = expression (fromMaybeList(tail tokens2))
                                       in (Lam l body, tokens4)
-                        _ -> (l, tokens2)
+                        _ ->
+                          case l of
+                            Lam _ _ ->
+                              let (arg, tokens5) = expression(tokens2)
+                                in (App l arg, tokens5)
+                            VTerm v ->
+                              let (arg, tokens5) = expression(tokens2)
+                                in (App l arg, tokens5)
+                            _ -> (l, tokens2)
 
 
 expr : List Token -> (Term, List Token)
 expr tokens =
     case head tokens of
-        Just (TokLParen)      -> let (leftTree, rightTokens) = expression (fromMaybeList(tail tokens))
-                                  in case head rightTokens of
-                                    Just (TokRParen)  -> (leftTree, fromMaybeList(tail rightTokens))
-                                    _                 -> (leftTree, [])
-        Just (TokSlash)       -> let (arg, arrow) = (head (drop 1 tokens), head(drop 2 tokens))
+        Just (TokLParen)      ->
+                                case head (drop 1 tokens) of
+                                  Just (TokBackSlash) ->
+                                    let (func, arg) = expression (fromMaybeList(tail tokens))
+                                      in case head arg of
+                                        Just (TokRParen)  -> (func, fromMaybeList(tail arg))
+                                        _                 -> (func, [])
+                                  _ ->
+                                    let (leftTree, rightTokens) = expression (fromMaybeList(tail tokens))
+                                      in case head rightTokens of
+                                        Just (TokRParen)  -> (leftTree, fromMaybeList(tail rightTokens))
+                                        _                 -> (leftTree, [])
+        Just (TokBackSlash)       -> let (arg, arrow) = (head (drop 1 tokens), head(drop 2 tokens))
                                   in case (arg, arrow) of
                                     (Just (TokVar v), Just TokArrow) ->
                                       (VTerm v, drop 2 tokens)
                                     _ ->
-                                      (CTerm(CInt 1), tokens)
+                                      (EmptyTree, tokens)
         Just (TokConstInt i)  -> (CTerm (CInt i), fromMaybeList(tail tokens))
         Just (TokConstBool b) -> (CTerm (CBool b), fromMaybeList(tail tokens))
         Just (TokVar v)       -> (VTerm v, fromMaybeList(tail tokens))

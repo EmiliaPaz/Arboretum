@@ -63,7 +63,7 @@ update msg model =
         , renderTreeInfos = rs
        }, Cmd.none)
 
-    IncDepth id -> 
+    IncDepth id ->
       let
         newRTs = filterUpdate (\x -> x.id == id) (\x -> {x | depth = x.depth + 1}) model.renderTreeInfos
       in
@@ -95,7 +95,7 @@ infos can recieve ids.
 -}
 genRenderInfos : Int -> List Var -> List RenderTreeInfo
 genRenderInfos depth vars =
-  List.indexedMap 
+  List.indexedMap
     ( \i var ->
         { id = i
         , var = var
@@ -183,7 +183,7 @@ renderTerm e t =
     checkResult = Render.typecheck e t
   in
     div [ class "text-div" ]
-    [ renderTermInline checkResult t 
+    [ renderTermInline checkResult t
     , text " : "
     , span [ class spanClass ] [ text (Render.checkResultToString checkResult) ]
     ]
@@ -200,6 +200,8 @@ listSubterms t =
     Eq x y ->    [x, y]
     And x y ->   [x, y]
     Or x y ->    [x, y]
+    Lam x y ->   [x, y]
+    App x y ->   [x, y]
     _ ->         []
 
 renderSubtermsRec : Int -> List Term -> CheckResult -> List (Html Msg)
@@ -264,12 +266,14 @@ renderTermInline result t =
         Eq _ _    -> "=="
         And _ _   -> "&&"
         Or _ _    -> "||"
+        Lam _ _   -> "->"
+        App _ _   -> " "
         _         -> ""
 
     subterms = renderSubterms argTerms result
   in
     case isOp of
-      True -> 
+      True ->
         case subterms of
           x :: xs ->
             span [] ([x, text (" " ++ opStr)] ++ xs)
@@ -288,7 +292,7 @@ renderErrorDiv c =
         gotStr = Render.typeToString got
       in
         div [class "error-details"] [ text ("Expected: " ++ expStr), br [] [], text ("Got: " ++ gotStr) ]
-    
+
     _ -> div [class "error-details"] []
 
 -- Recursive function that finds the correct tree in the old list of trees and changes it by creating a new list of render trees.
@@ -319,7 +323,7 @@ lookup e s =
 
 type alias RenderTree = Tree RenderNode
 
-type alias RenderNode = 
+type alias RenderNode =
   { render: Bool
   , term: Term }
 
@@ -357,15 +361,17 @@ genRenderTree depth e t =
         Eq x y    -> [gTree x, gTree y]
         And x y   -> [gTree x, gTree y]
         Or x y    -> [gTree x, gTree y]
+        --Lam x y   -> [gTree x, gTree y]
+        App x y   -> [gTree x, gTree y]
         _         -> []
 
-    n = 
+    n =
       -- always render render nodes that don't pass typecheck
       case checkStatus of
-        Checks _ -> 
+        Checks _ ->
           { render = (depth > 0)
           , term = t}
-        
+
         _ ->
           { render = True
           , term = t}
@@ -385,8 +391,8 @@ printRT : List Var -> List RenderTreeInfo -> List (Html Msg)
 printRT vars rtInfos =
   case rtInfos of
     [] -> [div [class "tkns-div"] [text ""]]
-    (ri::rs) -> 
-      let 
+    (ri::rs) ->
+      let
         rt = genRenderTree2 ri (lookup vars)
       in
         [div [ class "flex-container" ]

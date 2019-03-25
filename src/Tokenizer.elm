@@ -123,8 +123,8 @@ tokenizeLine str =
             else if x == ")" then
                 TokRParen :: tokenizeLine xs
 
-            else if x == "/" then
-                TokSlash :: tokenizeLine xs
+            else if x == "\\" then
+                TokBackSlash :: tokenizeLine xs
 
             else if x == "->" then
                 TokArrow :: tokenizeLine xs
