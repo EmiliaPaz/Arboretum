@@ -42,7 +42,7 @@ termToString t =
       "(" ++ (termToString t1) ++ " || " ++ (termToString t2) ++ ")"
 
     Lam t1 t2 ->
-      "(/" ++ (termToString t1) ++ "-> " ++ (termToString t2) ++ ")"
+      "(/" ++ (termToString t1) ++ " -> " ++ (termToString t2) ++ ")"
 
     App t1 t2 ->
       "(" ++ (termToString t1) ++ (termToString t2) ++ ")"
