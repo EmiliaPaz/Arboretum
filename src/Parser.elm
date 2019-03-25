@@ -23,23 +23,23 @@ parse tokens = case take 2 tokens of
                     _                    -> {name="",term=EmptyTree}
 
 twoSidedConnective : Term -> List Token -> TokTSC -> (Term, Term, List Token)
-twoSidedConnective left tokens typeSign = case (left, tokens, typeSign) of 
+twoSidedConnective left tokens typeSign = case (left, tokens, typeSign) of
                               -- tsc int
                               (Missing, [], TTSCInt tsci)       -> (MissingInt, MissingInt, tokens)
                               (_, [], TTSCInt tsci)             -> (left, MissingInt, tokens)
-                              (Missing, tokens2, TTSCInt tsci)  -> let (right, tokens3) = expression tokens2 in case right of 
+                              (Missing, tokens2, TTSCInt tsci)  -> let (right, tokens3) = expression tokens2 in case right of
                                                                                                                 Missing -> (MissingInt, MissingInt, tokens3)
                                                                                                                 _       -> (MissingInt, right, tokens3)
-                              (_, tokens2, TTSCInt tsci)        -> let (right, tokens3) = expression tokens2 in case right of 
+                              (_, tokens2, TTSCInt tsci)        -> let (right, tokens3) = expression tokens2 in case right of
                                                                                                                 Missing -> (left, MissingInt, tokens3)
                                                                                                                 _       -> (left, right, tokens3)
                               -- tsc bool
                               (Missing, [], TTSCBool tscb)       -> (MissingBool, MissingBool, tokens)
                               (_, [], TTSCBool tscb)             -> (left, MissingBool, tokens)
-                              (Missing, tokens2, TTSCBool tscb)  -> let (right, tokens3) = expression tokens2 in case right of 
+                              (Missing, tokens2, TTSCBool tscb)  -> let (right, tokens3) = expression tokens2 in case right of
                                                                                                                 Missing -> (MissingBool, MissingBool, tokens3)
                                                                                                                 _       -> (left, right, tokens3)
-                              (_, tokens2, TTSCBool tscb)        -> let (right, tokens3) = expression tokens2 in case right of 
+                              (_, tokens2, TTSCBool tscb)        -> let (right, tokens3) = expression tokens2 in case right of
                                                                                                                 Missing -> (left, MissingBool, tokens3)
                                                                                                                 _       -> (left, right, tokens3)
 
@@ -55,6 +55,8 @@ expression tokens = let (l, tokens2) = expr tokens
                                                 TTSCBool TokOr  -> (Or left right, tokens3)
                                                 TTSCBool TokAnd  -> (And left right, tokens3)
                                                 TTSCBool TokEq  -> (Eq left right, tokens3)
+                        Just TokArrow -> let (body, tokens4) = expression (fromMaybeList(tail tokens2))
+                                      in (Lam l body, tokens4)
                         _ -> (l, tokens2)
 
 
@@ -64,7 +66,13 @@ expr tokens =
         Just (TokLParen)      -> let (leftTree, rightTokens) = expression (fromMaybeList(tail tokens))
                                   in case head rightTokens of
                                     Just (TokRParen)  -> (leftTree, fromMaybeList(tail rightTokens))
-                                    _                 -> (leftTree, [])   
+                                    _                 -> (leftTree, [])
+        Just (TokSlash)       -> let (arg, arrow) = (head (drop 1 tokens), head(drop 2 tokens))
+                                  in case (arg, arrow) of
+                                    (Just (TokVar v), Just TokArrow) ->
+                                      (VTerm v, drop 2 tokens)
+                                    _ ->
+                                      (CTerm(CInt 1), tokens)
         Just (TokConstInt i)  -> (CTerm (CInt i), fromMaybeList(tail tokens))
         Just (TokConstBool b) -> (CTerm (CBool b), fromMaybeList(tail tokens))
         Just (TokVar v)       -> (VTerm v, fromMaybeList(tail tokens))
@@ -73,4 +81,3 @@ expr tokens =
                                   TTSCBool tscb -> (MissingBool, tokens)
         Just (TokHole)        -> (Missing,fromMaybeList(tail tokens))
         _                     -> (EmptyTree, tokens)
-

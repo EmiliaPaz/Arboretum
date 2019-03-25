@@ -6,8 +6,8 @@ import Types exposing (..)
 
 -------------------------------------- Rendering --------------------------------------
 boolToString : Bool -> String
-boolToString b = 
-  case b of 
+boolToString b =
+  case b of
     True -> "True"
     False -> "False"
 
@@ -19,10 +19,10 @@ termToString t =
       case x of
         CBool a -> boolToString a
         CInt a -> String.fromInt a
-      
+
     VTerm x ->
       x
-    
+
     Plus t1 t2 ->
       "(" ++ (termToString t1) ++ " + " ++ (termToString t2) ++ ")"
 
@@ -34,12 +34,15 @@ termToString t =
 
     Eq t1 t2 ->
       "(" ++ (termToString t1) ++ " == " ++ (termToString t2) ++ ")"
-    
+
     And t1 t2 ->
       "(" ++ (termToString t1) ++ " && " ++ (termToString t2) ++ ")"
 
     Or t1 t2 ->
       "(" ++ (termToString t1) ++ " || " ++ (termToString t2) ++ ")"
+
+    Lam t1 t2 ->
+      "(/" ++ (termToString t1) ++ "-> " ++ (termToString t2) ++ ")ß"
 
     _ -> ""
 
@@ -67,10 +70,10 @@ checkResultToString r =
 
     Fails argNum exp got out ->
       "Fails " ++ typeToString out
-    
+
     Partial t ->
       "Partial " ++ typeToString t
-    
+
     Invalid ->
       "Invalid"
 
@@ -97,7 +100,7 @@ checkSig sig args =
             Invalid       -> Nothing
         )
         args
-    
+
     checks = map2 (\x y ->
                     case y of
                       Just y2  -> x == y2
@@ -111,7 +114,7 @@ checkSig sig args =
                     Checks _ -> False
                     _        -> True
                   ) args
-    
+
     failIndex = elemIndex False checks
     failExp =
       case failIndex of
@@ -125,7 +128,7 @@ checkSig sig args =
             _             -> Nothing
         _ -> Nothing
 
-    
+
   in
     case remainder of
       Just r  ->
@@ -156,12 +159,12 @@ typecheck env t =
           case c of
             CBool _ -> [TBool]
             CInt _  -> [TInt]
-        
+
         VTerm v ->
           case env v of
             Just sub -> []
             Nothing -> []
-        
+
         Plus _ _  -> [TInt, TInt, TInt]
         Minus _ _ -> [TInt, TInt, TInt]
         Times _ _ -> [TInt, TInt, TInt]
@@ -169,7 +172,7 @@ typecheck env t =
         And _ _   -> [TBool, TBool, TBool]
         Or _ _    -> [TBool, TBool, TBool]
         _         -> []
-    
+
     args =
       case t of
         CTerm _   -> []
@@ -187,18 +190,18 @@ typecheck env t =
         case env v of
           Just sub -> check sub
           Nothing  -> Invalid
-      
+
       _ -> checkSig sig args
 
 
 tryBinFn : (a -> b -> c) -> Maybe a -> Maybe b -> Maybe c
-tryBinFn f mx my = 
+tryBinFn f mx my =
   case mx of
     Just x ->
       case my of
         Just y  -> Just (f x y)
         Nothing -> Nothing
-    
+
     Nothing -> Nothing
 
 tryBool : Maybe Val -> Maybe Bool
@@ -247,19 +250,19 @@ eval e t =
       case c of
         CInt x  -> Just (VInt x)
         CBool x -> Just (VBool x)
-    
+
     VTerm v ->
       case e v of
         Just subst -> evale subst
         Nothing    -> Nothing
-    
-    Plus x y -> 
+
+    Plus x y ->
       wrapInt ( tryBinFn (+) (tryInt (evale x)) (tryInt (evale y)) )
 
-    Minus x y -> 
+    Minus x y ->
       wrapInt ( tryBinFn (-) (tryInt (evale x)) (tryInt (evale y)) )
 
-    Times x y -> 
+    Times x y ->
       wrapInt ( tryBinFn (*) (tryInt (evale x)) (tryInt (evale y)) )
 
     Eq x y ->
@@ -268,10 +271,10 @@ eval e t =
         , wrapBool ( tryBinFn (==) (tryBool (evale x)) (tryBool (evale y)) )
         )
 
-    And x y -> 
+    And x y ->
       wrapBool ( tryBinFn (&&) (tryBool (evale x)) (tryBool (evale y)) )
-    
-    Or x y -> 
+
+    Or x y ->
       wrapBool ( tryBinFn (||) (tryBool (evale x)) (tryBool (evale y)) )
 
     _ -> Nothing
