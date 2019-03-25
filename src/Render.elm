@@ -42,7 +42,7 @@ termToString t =
       "(" ++ (termToString t1) ++ " || " ++ (termToString t2) ++ ")"
 
     Lam t1 t2 ->
-      "(/" ++ (termToString t1) ++ " -> " ++ (termToString t2) ++ ")"
+      "(\\ " ++ (termToString t1) ++ " -> " ++ (termToString t2) ++ ")"
 
     App t1 t2 ->
       "(" ++ (termToString t1) ++ (termToString t2) ++ ")"
@@ -56,6 +56,8 @@ typeToString t =
     TInt  -> "Int"
     TInt_TInt_TInt -> "Int -> Int -> Int"
     TBool_TBool_TBool -> "Bool -> Bool -> Bool"
+    TInt_TInt_TBool -> "Int -> Int -> Bool"
+    TBool_TBool_TInt -> "Bool -> Bool -> Int"
 
 valToString : Maybe Val -> String
 valToString v =
@@ -169,15 +171,6 @@ substitute old new n =
     Or t1 t2 -> Or (substitute t1 new n) (substitute t2 new n)
     any -> any
 
-generateScope : String -> Term -> List Var
-generateScope s t = {name = s, term = t} :: []
-
---typeCheckLambda : Env -> Term -> CheckResult
---typeCheckLambda env t ->
---  case t of
---    Lam a b ->
---      let scope = generateScope a
---    _ -> Invalid
 
 typeCheckApp : Env -> Term -> CheckResult
 typeCheckApp env t =
@@ -199,12 +192,16 @@ typeCheckApp env t =
         _ -> Invalid
     _ -> Invalid
 
-getFuncVType : List VType -> VType
-getFuncVType vs =
+
+checkFunc : List VType -> CheckResult
+checkFunc vs =
   case vs of
-    [TInt, TInt, TInt] -> TInt_TInt_TInt
-    [TBool, TBool, TBool] -> TBool_TBool_TBool
-    _ -> TInt -- Sorry, I couldn't think of a better default value, to fix.
+    [TInt, TInt, TInt] -> Checks TInt_TInt_TInt
+    [TBool, TBool, TBool] -> Checks TBool_TBool_TBool
+    [TInt, TInt, TBool]-> Checks TInt_TInt_TBool
+    [TBool, TBool, TInt]-> Checks TBool_TBool_TInt
+    _ -> Invalid
+
 
 getTypeSignature : Env -> Term -> List VType
 getTypeSignature env t =
@@ -227,6 +224,7 @@ getTypeSignature env t =
     Or _ _    -> [TBool, TBool, TBool]
     _         -> []
 
+
 typecheck : Env -> Term -> CheckResult
 typecheck env t =
   let
@@ -244,7 +242,6 @@ typecheck env t =
         Eq x y    -> [check x, check y]
         And x y   -> [check x, check y]
         Or x y    -> [check x, check y]
-        App x y   -> [check x, check y]
         _         -> []
   in
     case t of
@@ -253,8 +250,8 @@ typecheck env t =
           Just sub -> check sub
           Nothing  -> Invalid
 
-      --Probably need to fix this
-      Lam a b -> Checks (getFuncVType (getTypeSignature env b))
+      --Not sure about this
+      Lam a b -> checkFunc (getTypeSignature env b)
       App x y -> typeCheckApp env t
       _ -> checkSig sig args
 
@@ -342,6 +339,7 @@ eval e t =
     Or x y ->
       wrapBool ( tryBinFn (||) (tryBool (evale x)) (tryBool (evale y)) )
 
+    --Honestly not sure what to do here...
     Lam x y ->
       evale y
 

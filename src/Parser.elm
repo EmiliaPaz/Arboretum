@@ -64,7 +64,9 @@ expression tokens = let (l, tokens2) = expr tokens
                                 in (App l arg, tokens5)
                             VTerm v ->
                               let (arg, tokens5) = expression(tokens2)
-                                in (App l arg, tokens5)
+                                in case arg of
+                                  EmptyTree -> (l, tokens2)
+                                  _ -> (App l arg, tokens5)
                             _ -> (l, tokens2)
 
 

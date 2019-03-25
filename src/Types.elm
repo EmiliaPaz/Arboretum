@@ -11,10 +11,12 @@ type TokTSCBool = TokEq | TokAnd | TokOr
 
 type Const = CBool Bool | CInt Int
 type Term = CTerm Const | VTerm String | Plus Term Term | Minus Term Term | Times Term Term
-            | Eq Term Term | And Term Term | Or Term Term | Lam Term Term | App Term Term | MissingInt | MissingBool | Missing | EmptyTree
+            | Eq Term Term | And Term Term | Or Term Term | Lam Term Term | App Term Term
+            | MissingInt | MissingBool | Missing | EmptyTree
 
 -- V(alue)Type is a type that a TreeAssembly term can evaluate to
 type VType = TBool | TInt | TInt_TInt_TInt | TBool_TBool_TBool
+             | TInt_TInt_TBool |  TBool_TBool_TInt
 
 -- Val is a value that a term can evaluate to
 type Val = VBool Bool | VInt Int
