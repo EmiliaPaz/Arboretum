@@ -66,7 +66,12 @@ expression tokens = let (l, tokens2) = expr tokens
                               let (arg, tokens5) = expression(tokens2)
                                 in case arg of
                                   EmptyTree -> (l, tokens2)
-                                  _ -> (App l arg, tokens5)
+                                  _ ->
+                                    case tokens5 of
+                                      []-> (App l arg, tokens5)
+                                      _ -> let (arg2, tokens6) = expression(tokens5)
+                                              in (App l arg2, tokens6)
+
                             _ -> (l, tokens2)
 
 
