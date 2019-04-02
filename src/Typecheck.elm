@@ -1,47 +1,11 @@
-module Render exposing (..)
-
+module Typecheck exposing (CheckResult(..), VType(..), typeToString, checkResultToString, typecheck)
 import List exposing (..)
 import List.Extra exposing (elemIndex, getAt)
-import Types exposing (..)
-
--------------------------------------- Rendering --------------------------------------
-boolToString : Bool -> String
-boolToString b = 
-  case b of 
-    True -> "True"
-    False -> "False"
+import Types exposing (Env, Const(..), Term(..))
 
 
-termToString : Term -> String
-termToString t =
-  case t of
-    CTerm x ->
-      case x of
-        CBool a -> boolToString a
-        CInt a -> String.fromInt a
-      
-    VTerm x ->
-      x
-    
-    Plus t1 t2 ->
-      "(" ++ (termToString t1) ++ " + " ++ (termToString t2) ++ ")"
-
-    Minus t1 t2 ->
-      "(" ++ (termToString t1) ++ " - " ++ (termToString t2) ++ ")"
-
-    Times t1 t2 ->
-      "(" ++ (termToString t1) ++ " * " ++ (termToString t2) ++ ")"
-
-    Eq t1 t2 ->
-      "(" ++ (termToString t1) ++ " == " ++ (termToString t2) ++ ")"
-    
-    And t1 t2 ->
-      "(" ++ (termToString t1) ++ " && " ++ (termToString t2) ++ ")"
-
-    Or t1 t2 ->
-      "(" ++ (termToString t1) ++ " || " ++ (termToString t2) ++ ")"
-
-    _ -> ""
+-- V(alue)Type is a type that a TreeAssembly term can evaluate to
+type VType = TBool | TInt
 
 
 typeToString : VType -> String
@@ -50,13 +14,18 @@ typeToString t =
     TBool -> "Bool"
     TInt  -> "Int"
 
+{-
+CheckResult represents the outcome of typechecking a term
 
-valToString : Maybe Val -> String
-valToString v =
-  case v of
-    Just (VBool x) -> boolToString x
-    Just (VInt x)  -> String.fromInt x
-    Nothing        -> "Undefined"
+Checks type : The term successfully typechecks to `type`
+Fails argNum expected got output : The terms fails typechecking, where
+  `argNum` was of type `got` instead of `expected`.  The term would have
+  output type `output`, had typechecking succeeded.
+Partial type : At the top level, the term typehcecking was successful with
+  `type`, but an error occured somewhere in the derivation tree
+Invalid : Typechecking failed with no useful diagnostic info
+-}
+type CheckResult = Checks VType | Fails Int VType VType VType | Partial VType | Invalid
 
 
 checkResultToString : CheckResult -> String
@@ -73,14 +42,6 @@ checkResultToString r =
     
     Invalid ->
       "Invalid"
-
-
-last : List a -> Maybe a
-last l =
-  case l of
-    []      -> Nothing
-    [x]     -> Just x
-    x :: xs -> last xs
 
 
 -- checks a function signature `sig` against a list of argument types `args`
@@ -189,89 +150,3 @@ typecheck env t =
           Nothing  -> Invalid
       
       _ -> checkSig sig args
-
-
-tryBinFn : (a -> b -> c) -> Maybe a -> Maybe b -> Maybe c
-tryBinFn f mx my = 
-  case mx of
-    Just x ->
-      case my of
-        Just y  -> Just (f x y)
-        Nothing -> Nothing
-    
-    Nothing -> Nothing
-
-tryBool : Maybe Val -> Maybe Bool
-tryBool mx =
-  case mx of
-    Just (VBool x) -> Just x
-    _              -> Nothing
-
-tryInt : Maybe Val -> Maybe Int
-tryInt mx =
-  case mx of
-    Just (VInt x) ->  Just x
-    _              -> Nothing
-
-wrapInt : Maybe Int -> Maybe Val
-wrapInt c =
-  case c of
-    Just x  -> Just (VInt x)
-    Nothing -> Nothing
-
-wrapBool : Maybe Bool -> Maybe Val
-wrapBool c =
-  case c of
-    Just x  -> Just (VBool x)
-    Nothing -> Nothing
-
--- an approximaton of an 'or' operation with maybe
-takeOne : (Maybe a, Maybe a) -> Maybe a
-takeOne (mx, my) =
-  case mx of
-    Just x  -> Just x
-    Nothing ->
-      case my of
-        Just y ->  Just y
-        Nothing -> Nothing
-
-
--- evaluates a term
-eval : Env -> Term -> Maybe Val
-eval e t =
-  let
-    evale = eval e
-  in
-  case t of
-    CTerm c ->
-      case c of
-        CInt x  -> Just (VInt x)
-        CBool x -> Just (VBool x)
-    
-    VTerm v ->
-      case e v of
-        Just subst -> evale subst
-        Nothing    -> Nothing
-    
-    Plus x y -> 
-      wrapInt ( tryBinFn (+) (tryInt (evale x)) (tryInt (evale y)) )
-
-    Minus x y -> 
-      wrapInt ( tryBinFn (-) (tryInt (evale x)) (tryInt (evale y)) )
-
-    Times x y -> 
-      wrapInt ( tryBinFn (*) (tryInt (evale x)) (tryInt (evale y)) )
-
-    Eq x y ->
-      takeOne
-        ( wrapBool ( tryBinFn (==) (tryInt (evale x)) (tryInt (evale y)) )
-        , wrapBool ( tryBinFn (==) (tryBool (evale x)) (tryBool (evale y)) )
-        )
-
-    And x y -> 
-      wrapBool ( tryBinFn (&&) (tryBool (evale x)) (tryBool (evale y)) )
-    
-    Or x y -> 
-      wrapBool ( tryBinFn (||) (tryBool (evale x)) (tryBool (evale y)) )
-
-    _ -> Nothing

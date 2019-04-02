@@ -7,8 +7,9 @@ import Debug exposing (toString)
 
 import Tokenizer
 import Parser
-import Render
+import Evaluate
 import Types exposing (..)
+import Typecheck exposing (CheckResult(..), typecheck, checkResultToString, typeToString)
 
 
 -- MAIN
@@ -114,7 +115,7 @@ subscriptions model =
 
 view : Model -> Document Msg
 view model =
- { title = "Tree Assembly"
+ { title = "TreeScript"
   , body =
     [
       Html.node "link" [ Html.Attributes.rel "stylesheet", Html.Attributes.href "style.css" ] []
@@ -154,7 +155,7 @@ renderSummary : Env -> RenderTree -> Html Msg
 renderSummary envr (Node rNode _) =
   div [ class "summary" ]
   [ h1 [ class "summary-title" ] [ text "Summary:" ]
-  , text ( "Evaluation result: " ++ Render.valToString (Render.eval envr rNode.term) )
+  , text ( "Evaluation result: " ++ Evaluate.valToString (Evaluate.eval envr rNode.term) )
   ]
 
 
@@ -175,17 +176,17 @@ renderTerm : Env -> Term -> Html Msg
 renderTerm e t =
   let
     spanClass =
-      case Render.typecheck e t of
+      case typecheck e t of
         Checks _    -> "type-checks"
         Fails _ _ _ _ -> "type-fails"
         Partial _   -> "type-partial"
         Invalid     -> "type-fails"
-    checkResult = Render.typecheck e t
+    checkResult = typecheck e t
   in
     div [ class "text-div" ]
     [ renderTermInline checkResult t 
     , text " : "
-    , span [ class spanClass ] [ text (Render.checkResultToString checkResult) ]
+    , span [ class spanClass ] [ text (checkResultToString checkResult) ]
     ]
 
 
@@ -217,13 +218,13 @@ renderSubtermsRec i ts c =
       [] -> [ text "" ]
       [t] ->
         case isFail of
-          True  -> [ span [class "error-subterm"] [text (Render.termToString t), renderErrorDiv c] ]
-          False -> [ text (Render.termToString t) ]
+          True  -> [ span [class "error-subterm"] [text (Evaluate.termToString t), renderErrorDiv c] ]
+          False -> [ text (Evaluate.termToString t) ]
       t :: ts2 ->
         case isFail of
-          True -> [ span [class "error-subterm"] [text (Render.termToString t), renderErrorDiv c] ]  ++
+          True -> [ span [class "error-subterm"] [text (Evaluate.termToString t), renderErrorDiv c] ]  ++
             renderNext ts2 c
-          False -> [ text (Render.termToString t) ] ++
+          False -> [ text (Evaluate.termToString t) ] ++
             renderNext ts2 c
 
 intersperse : a -> List a -> List a
@@ -276,7 +277,7 @@ renderTermInline result t =
           _ ->
             text "rendering error"
       False ->
-        text (Render.termToString t)
+        text (Evaluate.termToString t)
 
 
 renderErrorDiv : CheckResult -> Html Msg
@@ -284,8 +285,8 @@ renderErrorDiv c =
   case c of
     Fails _ exp got out ->
       let
-        expStr = Render.typeToString exp
-        gotStr = Render.typeToString got
+        expStr = typeToString exp
+        gotStr = typeToString got
       in
         div [class "error-details"] [ text ("Expected: " ++ expStr), br [] [], text ("Got: " ++ gotStr) ]
     
@@ -343,7 +344,7 @@ genRenderTree depth e t =
   let
     dnew = depth - 1
     gTree = genRenderTree dnew e
-    checkStatus = Render.typecheck e t
+    checkStatus = typecheck e t
     children =
       case t of
         CTerm _   -> []
