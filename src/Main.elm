@@ -115,7 +115,7 @@ subscriptions model =
 
 view : Model -> Document Msg
 view model =
- { title = "Tree Assembly"
+ { title = "TreeScript"
   , body =
     [
       Html.node "link" [ Html.Attributes.rel "stylesheet", Html.Attributes.href "style.css" ] []
