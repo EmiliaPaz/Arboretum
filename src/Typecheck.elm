@@ -1,8 +1,18 @@
-module Typecheck exposing (CheckResult(..), checkResultToString, typecheck)
+module Typecheck exposing (CheckResult(..), VType(..), typeToString, checkResultToString, typecheck)
 import List exposing (..)
 import List.Extra exposing (elemIndex, getAt)
-import Types exposing (Env, Const(..), Term(..), VType(..))
-import Render exposing (typeToString)
+import Types exposing (Env, Const(..), Term(..))
+
+
+-- V(alue)Type is a type that a TreeAssembly term can evaluate to
+type VType = TBool | TInt
+
+
+typeToString : VType -> String
+typeToString t =
+  case t of
+    TBool -> "Bool"
+    TInt  -> "Int"
 
 {-
 CheckResult represents the outcome of typechecking a term

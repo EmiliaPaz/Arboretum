@@ -1,15 +1,25 @@
-module Render exposing (..)
+module Evaluate exposing (..)
 
 import List exposing (..)
 import List.Extra exposing (elemIndex, getAt)
 import Types exposing (..)
 
--------------------------------------- Rendering --------------------------------------
+-- Val is a value that a term can evaluate to
+type Val = VBool Bool | VInt Int
+
 boolToString : Bool -> String
 boolToString b = 
   case b of 
     True -> "True"
     False -> "False"
+
+
+valToString : Maybe Val -> String
+valToString v =
+  case v of
+    Just (VBool x) -> boolToString x
+    Just (VInt x)  -> String.fromInt x
+    Nothing        -> "Undefined"
 
 
 termToString : Term -> String
@@ -42,21 +52,6 @@ termToString t =
       "(" ++ (termToString t1) ++ " || " ++ (termToString t2) ++ ")"
 
     _ -> ""
-
-
-typeToString : VType -> String
-typeToString t =
-  case t of
-    TBool -> "Bool"
-    TInt  -> "Int"
-
-
-valToString : Maybe Val -> String
-valToString v =
-  case v of
-    Just (VBool x) -> boolToString x
-    Just (VInt x)  -> String.fromInt x
-    Nothing        -> "Undefined"
 
 
 tryBinFn : (a -> b -> c) -> Maybe a -> Maybe b -> Maybe c
