@@ -9,6 +9,7 @@ import Tokenizer
 import Parser
 import Render
 import Types exposing (..)
+import Typecheck exposing (CheckResult(..), typecheck, checkResultToString)
 
 
 -- MAIN
@@ -175,17 +176,17 @@ renderTerm : Env -> Term -> Html Msg
 renderTerm e t =
   let
     spanClass =
-      case Render.typecheck e t of
+      case typecheck e t of
         Checks _    -> "type-checks"
         Fails _ _ _ _ -> "type-fails"
         Partial _   -> "type-partial"
         Invalid     -> "type-fails"
-    checkResult = Render.typecheck e t
+    checkResult = typecheck e t
   in
     div [ class "text-div" ]
     [ renderTermInline checkResult t 
     , text " : "
-    , span [ class spanClass ] [ text (Render.checkResultToString checkResult) ]
+    , span [ class spanClass ] [ text (checkResultToString checkResult) ]
     ]
 
 
@@ -343,7 +344,7 @@ genRenderTree depth e t =
   let
     dnew = depth - 1
     gTree = genRenderTree dnew e
-    checkStatus = Render.typecheck e t
+    checkStatus = typecheck e t
     children =
       case t of
         CTerm _   -> []

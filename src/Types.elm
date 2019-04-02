@@ -21,16 +21,3 @@ type alias Var =
   , term: Term }
 
 type alias Env = (String -> Maybe Term)
-
-{-
-CheckResult represents the outcome of typechecking a term
-
-Checks type : The term successfully typechecks to `type`
-Fails argNum expected got output : The terms fails typechecking, where
-  `argNum` was of type `got` instead of `expected`.  The term would have
-  output type `output`, had typechecking succeeded.
-Partial type : At the top level, the term typehcecking was successful with
-  `type`, but an error occured somewhere in the derivation tree
-Invalid : Typechecking failed with no useful diagnostic info
--}
-type CheckResult = Checks VType | Fails Int VType VType VType | Partial VType | Invalid
