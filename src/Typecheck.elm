@@ -1,7 +1,8 @@
 module Typecheck exposing (CheckResult(..), VType(..), typeToString, checkResultToString, typecheck)
 import List exposing (..)
 import List.Extra exposing (elemIndex, getAt)
-import Types exposing (Env, Const(..), Term(..))
+import Types exposing (Const(..), Term(..))
+import Environment exposing (Env, lookup)
 
 
 -- V(alue)Type is a type that a TreeAssembly term can evaluate to
@@ -119,7 +120,7 @@ typecheck env t =
             CInt _  -> [TInt]
         
         VTerm v ->
-          case env v of
+          case lookup env v of
             Just sub -> []
             Nothing -> []
         
@@ -145,7 +146,7 @@ typecheck env t =
   in
     case t of
       VTerm v ->
-        case env v of
+        case lookup env v of
           Just sub -> check sub
           Nothing  -> Invalid
       
