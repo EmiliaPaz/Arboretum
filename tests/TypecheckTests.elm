@@ -4,7 +4,7 @@ import Expect exposing (Expectation)
 import Fuzz exposing (Fuzzer, int, list, string)
 import Test exposing (..)
 
-import Typecheck exposing (CheckResult(..), typecheck)
+import Typecheck exposing (CheckResult(..), VType(..), typecheck)
 import Types exposing (..)
 
 -- code repition; this should be refactored out in later commits
