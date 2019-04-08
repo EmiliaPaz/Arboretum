@@ -377,19 +377,9 @@ printRT : List Var -> List RenderTreeInfo -> List (Html Msg)
 printRT vars rtInfos =
   case rtInfos of
     [] -> [div [class "tkns-div"] [text ""]]
-<<<<<<< HEAD
     (ri::rs) ->
       let
-        rt = genRenderTree2 ri (lookup vars)
-||||||| merged common ancestors
-    (ri::rs) -> 
-      let 
-        rt = genRenderTree2 ri (lookup vars)
-=======
-    (ri::rs) -> 
-      let 
         rt = genRenderTree2 ri (Environment.varsToEnv vars)
->>>>>>> master
       in
         [div [ class "flex-container" ]
                       [

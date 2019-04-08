@@ -4,6 +4,7 @@ import List exposing (..)
 import List.Extra exposing (elemIndex, getAt)
 import Types exposing (..)
 import Environment exposing (Env, lookup)
+import Typecheck exposing(substitute)
 
 -- Val is a value that a term can evaluate to
 type Val = VBool Bool | VInt Int
@@ -148,12 +149,12 @@ eval e t =
             VTerm n -> evale (substitute z y n)
             _ -> Nothing
         VTerm v ->
-          let lambda = e v
+          let lambda = lookup e v
             in case lambda of
               Just (Lam w z) ->
                 case w of
                   VTerm n -> evale (substitute z y n)
                   _ -> Nothing
               _ -> Nothing
-
+        _ -> Nothing
     _ -> Nothing

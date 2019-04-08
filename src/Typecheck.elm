@@ -1,4 +1,4 @@
-module Typecheck exposing (CheckResult(..), VType(..), typeToString, checkResultToString, typecheck)
+module Typecheck exposing (CheckResult(..), VType(..), typeToString, checkResultToString, typecheck, substitute)
 import List exposing (..)
 import List.Extra exposing (elemIndex, getAt)
 import Types exposing (Const(..), Term(..))
@@ -141,7 +141,7 @@ typeCheckApp env t =
             VTerm n -> typecheck env (substitute z y n)
             _ -> Invalid
         VTerm v ->
-          let lambda = env v
+          let lambda = lookup env v
             in case lambda of
               Just (Lam w z) ->
                 case w of
