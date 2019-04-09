@@ -1,3 +1,5 @@
+port module Main exposing (..)
+
 import Browser exposing (Document)
 import Html exposing (Html, button, div, text, h1, h3, input, span, textarea, br)
 import Html.Events exposing (onClick, onInput)
@@ -28,6 +30,7 @@ type alias Model =
   , tokens  : List (List Token)
   , vars       : List Var
   , renderTreeInfos : List RenderTreeInfo
+  , fromJs : String
   }
 
 
@@ -37,6 +40,7 @@ init _ =
     , tokens = [[]]
     , vars = []
     , renderTreeInfos = []
+    , fromJs = ""
     }
   , Cmd.none )
 
@@ -45,7 +49,7 @@ init _ =
 -- UPDATE
 
 type Msg
-  = Change String | IncDepth Int | DecDepth Int
+  = Change String | IncDepth Int | DecDepth Int | JSMsg String
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -62,7 +66,7 @@ update msg model =
         , tokens = t
         , vars = v
         , renderTreeInfos = rs
-       }, Cmd.none)
+       }, toJS newContent)
 
     IncDepth id -> 
       let
@@ -75,6 +79,8 @@ update msg model =
         newRTs = filterUpdate (\x -> x.id == id) (\x -> {x | depth = x.depth - 1}) model.renderTreeInfos
       in
         ({model | renderTreeInfos = newRTs} , Cmd.none )
+    
+    JSMsg str -> ({model | fromJs = str} , Cmd.none)
 
 
 -- runs update function on items passing the filter function
@@ -108,7 +114,7 @@ genRenderInfos depth vars =
 -- SUBSCRIPTIONS
 subscriptions : Model -> Sub Msg
 subscriptions model =
-  Sub.none
+  toElm JSMsg
 
 
 -- VIEW
@@ -142,6 +148,7 @@ view model =
           , div [class "trees-container"] (printRT model.vars model.renderTreeInfos)
          ]
       ]
+      , div [] [text model.fromJs]
     ]
  }
 
@@ -406,3 +413,8 @@ printRT vars rtInfos =
                                   ]
                               ]
                       ]] ++ (printRT vars rs)
+
+
+-- PORT
+port toJS : String -> Cmd msg
+port toElm : (String -> msg) -> Sub msg
