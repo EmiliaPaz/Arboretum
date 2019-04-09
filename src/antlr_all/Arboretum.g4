@@ -1,6 +1,4 @@
-grammar Arboretum;
-
-finalExpression     : expression EOF ;
+grammar Arboretum;  
 
 expression          : '(' expression ')'                        #parenthesisExp
                     | expression (AND|OR|EQ) expression         #boolExp

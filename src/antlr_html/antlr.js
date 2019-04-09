@@ -20,8 +20,9 @@ http.createServer((req, res) => {
    var tokens  = new antlr4.CommonTokenStream(lexer);
    var parser = new ArboretumParser.ArboretumParser(tokens);
    parser.buildParseTrees = true;   
-   var tree = parser.expression();   
+   var tree = parser.finalExpression();   
    var htmlArboretum = new HtmlArboretumListener(res);
+
    antlr4.tree.ParseTreeWalker.DEFAULT.walk(htmlArboretum, tree);
    
    res.write('</body></html>');
