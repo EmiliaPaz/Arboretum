@@ -5,8 +5,7 @@ import Types exposing (Const(..), Term(..))
 import Environment exposing (Env, lookup)
 
 -- V(alue)Type is a type that a TreeAssembly term can evaluate to
-type VType = TBool | TInt | TInt_TInt_TInt | TBool_TBool_TBool
-             | TInt_TInt_TBool |  TBool_TBool_TInt
+type VType = TBool | TInt | TLam VType VType
 
 
 
@@ -15,10 +14,7 @@ typeToString t =
   case t of
     TBool -> "Bool"
     TInt  -> "Int"
-    TInt_TInt_TInt -> "Int -> Int -> Int"
-    TBool_TBool_TBool -> "Bool -> Bool -> Bool"
-    TInt_TInt_TBool -> "Int -> Int -> Bool"
-    TBool_TBool_TInt -> "Bool -> Bool -> Int"
+    TLam a b -> "Lam" ++ " " ++ (typeToString a) ++ " " ++ (typeToString b)
 
 {-
 CheckResult represents the outcome of typechecking a term
@@ -152,16 +148,6 @@ typeCheckApp env t =
     _ -> Invalid
 
 
-checkFunc : List VType -> CheckResult
-checkFunc vs =
-  case vs of
-    [TInt, TInt, TInt] -> Checks TInt_TInt_TInt
-    [TBool, TBool, TBool] -> Checks TBool_TBool_TBool
-    [TInt, TInt, TBool]-> Checks TInt_TInt_TBool
-    [TBool, TBool, TInt]-> Checks TBool_TBool_TInt
-    _ -> Invalid
-
-
 getTypeSignature : Env -> Term -> List VType
 getTypeSignature env t =
   case t of
@@ -208,6 +194,10 @@ typecheck env t =
         case lookup env v of
           Just sub -> check sub
           Nothing  -> Invalid
-      Lam a b -> checkFunc (getTypeSignature env b)
+      --Lam a b -> checkFunc (getTypeSignature env b)
+      Lam a b ->
+        case (typecheck env a, typecheck env b) of
+          (Checks x, Checks y) -> Checks (TLam x y)
+          _ -> Invalid
       App x y -> typeCheckApp env t
       _ -> checkSig sig args
