@@ -13,5 +13,3 @@ type Term = CTerm Const | VTerm String | Plus Term Term | Minus Term Term | Time
 type alias Var =
   { name: String
   , term: Term }
-
-type alias Env = (String -> Maybe Term)

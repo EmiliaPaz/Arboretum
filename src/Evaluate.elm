@@ -3,6 +3,7 @@ module Evaluate exposing (..)
 import List exposing (..)
 import List.Extra exposing (elemIndex, getAt)
 import Types exposing (..)
+import Environment exposing (Env, lookup)
 
 -- Val is a value that a term can evaluate to
 type Val = VBool Bool | VInt Int
@@ -112,7 +113,7 @@ eval e t =
         CBool x -> Just (VBool x)
     
     VTerm v ->
-      case e v of
+      case lookup e v of
         Just subst -> evale subst
         Nothing    -> Nothing
     

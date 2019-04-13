@@ -7,6 +7,7 @@ import Debug exposing (toString)
 
 import Tokenizer
 import Parser
+import Environment exposing (Env, lookup)
 import Evaluate
 import Types exposing (..)
 import Typecheck exposing (CheckResult(..), typecheck, checkResultToString, typeToString)
@@ -302,22 +303,6 @@ newRenderTree olrdRTS newRTS (Node nTerm _) depth env = case olrdRTS of
               else newRenderTree rs (newRTS ++ [r]) tree depth env-}
 
 
-{-
-attempts to find a Term for s in e; currying lookup with a list of vars
-produces an Env
--}
-
-lookup : List Var -> String -> Maybe Term
-lookup e s =
-  case e of
-    [] ->
-      Nothing
-
-    v :: vs ->
-      if v.name == s then
-        Just v.term
-      else lookup vs s
-
 type alias RenderTree = Tree RenderNode
 
 type alias RenderNode = 
@@ -349,7 +334,7 @@ genRenderTree depth e t =
       case t of
         CTerm _   -> []
         VTerm x   ->
-          case e x of
+          case lookup e x of
             Just subst -> [gTree subst]
             Nothing    -> []
         Plus x y  -> [gTree x, gTree y]
@@ -388,14 +373,14 @@ printRT vars rtInfos =
     [] -> [div [class "tkns-div"] [text ""]]
     (ri::rs) -> 
       let 
-        rt = genRenderTree2 ri (lookup vars)
+        rt = genRenderTree2 ri (Environment.varsToEnv vars)
       in
         [div [ class "flex-container" ]
                       [
-                              div [class "tree-container"] [ renderTree (lookup vars) rt ]
+                              div [class "tree-container"] [ renderTree (Environment.varsToEnv vars) rt ]
                           ,   div [ class "ui-div" ]
                               [
-                                renderSummary (lookup vars) rt
+                                renderSummary (Environment.varsToEnv vars) rt
                                 , h3 [class "css-title"] [text "Depth:"]
                                 , div [class "button-container"]
                                   [ div [ class "buttons" ]
