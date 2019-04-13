@@ -1,12 +1,12 @@
-module Typecheck exposing (CheckResult(..), VType(..), typeToString, checkResultToString, typecheck)
+module Typecheck exposing (CheckResult(..), VType(..), typeToString, checkResultToString, typecheck, substitute)
 import List exposing (..)
 import List.Extra exposing (elemIndex, getAt)
 import Types exposing (Const(..), Term(..))
 import Environment exposing (Env, lookup)
 
-
 -- V(alue)Type is a type that a TreeAssembly term can evaluate to
-type VType = TBool | TInt
+type VType = TBool | TInt | TLam VType VType
+
 
 
 typeToString : VType -> String
@@ -14,6 +14,7 @@ typeToString t =
   case t of
     TBool -> "Bool"
     TInt  -> "Int"
+    TLam a b -> "Lam" ++ " " ++ (typeToString a) ++ " " ++ (typeToString b)
 
 {-
 CheckResult represents the outcome of typechecking a term
@@ -37,10 +38,10 @@ checkResultToString r =
 
     Fails argNum exp got out ->
       "Fails " ++ typeToString out
-    
+
     Partial t ->
       "Partial " ++ typeToString t
-    
+
     Invalid ->
       "Invalid"
 
@@ -59,7 +60,7 @@ checkSig sig args =
             Invalid       -> Nothing
         )
         args
-    
+
     checks = map2 (\x y ->
                     case y of
                       Just y2  -> x == y2
@@ -73,7 +74,7 @@ checkSig sig args =
                     Checks _ -> False
                     _        -> True
                   ) args
-    
+
     failIndex = elemIndex False checks
     failExp =
       case failIndex of
@@ -87,7 +88,7 @@ checkSig sig args =
             _             -> Nothing
         _ -> Nothing
 
-    
+
   in
     case remainder of
       Just r  ->
@@ -107,31 +108,75 @@ checkSig sig args =
       Nothing -> Invalid
 
 
+substitute : Term -> Term -> String -> Term
+substitute old new n =
+  case old of
+    CTerm c -> CTerm c
+    VTerm v -> if n == v then new else VTerm v
+    Lam t1 t2 ->
+      case t1 of
+        VTerm v -> if n == v then Lam t1 t2 else Lam t1 (substitute t2 new n)
+        _ -> Lam t1 t2
+    App t1 t2 -> App (substitute t1 new n) (substitute t2 new n)
+    Plus t1 t2 -> Plus (substitute t1 new n) (substitute t2 new n)
+    Minus t1 t2 -> Minus (substitute t1 new n) (substitute t2 new n)
+    Times t1 t2 -> Times (substitute t1 new n) (substitute t2 new n)
+    Eq t1 t2 -> Eq (substitute t1 new n) (substitute t2 new n)
+    And t1 t2 -> And (substitute t1 new n) (substitute t2 new n)
+    Or t1 t2 -> Or (substitute t1 new n) (substitute t2 new n)
+    any -> any
+
+
+typeCheckApp : Env -> Term -> CheckResult
+typeCheckApp env t =
+  case t of
+    App x y ->
+      case x of
+        Lam w z ->
+          case w of
+            VTerm n -> typecheck env (substitute z y n)
+            _ -> Invalid
+        VTerm v ->
+          let lambda = lookup env v
+            in case lambda of
+              Just (Lam w z) ->
+                case w of
+                  VTerm n -> typecheck env (substitute z y n)
+                  _ -> Invalid
+              _ -> Invalid
+        _ -> Invalid
+    _ -> Invalid
+
+
+getTypeSignature : Env -> Term -> List VType
+getTypeSignature env t =
+  case t of
+    CTerm c ->
+      case c of
+        CBool _ -> [TBool]
+        CInt _  -> [TInt]
+
+    VTerm v ->
+      case lookup env v of
+        Just sub -> []
+        Nothing -> []
+
+    Plus _ _  -> [TInt, TInt, TInt]
+    Minus _ _ -> [TInt, TInt, TInt]
+    Times _ _ -> [TInt, TInt, TInt]
+    Eq _ _    -> [TInt, TInt, TBool]
+    And _ _   -> [TBool, TBool, TBool]
+    Or _ _    -> [TBool, TBool, TBool]
+    _         -> []
+
+
 typecheck : Env -> Term -> CheckResult
 typecheck env t =
   let
     -- curry environment into the typechecker right away
     check = typecheck env
-    sig =
-      case t of
-        CTerm c ->
-          case c of
-            CBool _ -> [TBool]
-            CInt _  -> [TInt]
-        
-        VTerm v ->
-          case lookup env v of
-            Just sub -> []
-            Nothing -> []
-        
-        Plus _ _  -> [TInt, TInt, TInt]
-        Minus _ _ -> [TInt, TInt, TInt]
-        Times _ _ -> [TInt, TInt, TInt]
-        Eq _ _    -> [TInt, TInt, TBool]
-        And _ _   -> [TBool, TBool, TBool]
-        Or _ _    -> [TBool, TBool, TBool]
-        _         -> []
-    
+    sig = getTypeSignature env t
+
     args =
       case t of
         CTerm _   -> []
@@ -149,5 +194,10 @@ typecheck env t =
         case lookup env v of
           Just sub -> check sub
           Nothing  -> Invalid
-      
+      --Lam a b -> checkFunc (getTypeSignature env b)
+      Lam a b ->
+        case (typecheck env a, typecheck env b) of
+          (Checks x, Checks y) -> Checks (TLam x y)
+          _ -> Invalid
+      App x y -> typeCheckApp env t
       _ -> checkSig sig args
