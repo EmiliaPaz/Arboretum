@@ -1,3 +1,5 @@
+port module Main exposing (..)
+
 import Browser exposing (Document)
 import Html exposing (Html, button, div, text, h1, h3, input, span, textarea, br)
 import Html.Events exposing (onClick, onInput)
@@ -42,6 +44,9 @@ init _ =
   , Cmd.none )
 
 
+-- PORTS (not really sure where to put these)
+port parseText : String -> Cmd a
+
 
 -- UPDATE
 
@@ -63,7 +68,7 @@ update msg model =
         , tokens = t
         , vars = v
         , renderTreeInfos = rs
-       }, Cmd.none)
+       }, parseText newContent)
 
     IncDepth id ->
       let
