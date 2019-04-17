@@ -194,7 +194,6 @@ typecheck env t =
         case lookup env v of
           Just sub -> check sub
           Nothing  -> Invalid
-      --Lam a b -> checkFunc (getTypeSignature env b)
       Lam a b ->
         case (typecheck env a, typecheck env b) of
           (Checks x, Checks y) -> Checks (TLam x y)

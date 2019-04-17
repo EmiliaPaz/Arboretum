@@ -7,7 +7,7 @@ import Environment exposing (Env, lookup)
 import Typecheck exposing(substitute)
 
 -- Val is a value that a term can evaluate to
-type Val = VBool Bool | VInt Int
+type Val = VBool Bool | VInt Int | VFun Env String Term
 
 boolToString : Bool -> String
 boolToString b =
@@ -21,6 +21,7 @@ valToString v =
   case v of
     Just (VBool x) -> boolToString x
     Just (VInt x)  -> String.fromInt x
+    Just (VFun e n t) ->  "\\" ++ n ++ "->" ++ (termToString t)
     Nothing        -> "Undefined"
 
 
@@ -146,7 +147,10 @@ eval e t =
       wrapBool ( tryBinFn (||) (tryBool (evale x)) (tryBool (evale y)) )
 
     Lam x y ->
-      evale y
+      case x of
+        VTerm n -> Just (VFun e n y)
+        _ -> Nothing
+
 
     App x y ->
       case x of

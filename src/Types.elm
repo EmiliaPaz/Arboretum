@@ -11,7 +11,7 @@ type TokTSCBool = TokEq | TokAnd | TokOr
 
 type Const = CBool Bool | CInt Int
 type Term = CTerm Const | VTerm String | Plus Term Term | Minus Term Term | Times Term Term
-            | Eq Term Term | And Term Term | Or Term Term | Lam Term Term | App Term Term
+            | Eq Term Term | And Term Term | Or Term Term | Lam String Term | App Term Term
             | MissingInt | MissingBool | Missing | EmptyTree
 
 type alias Var =
