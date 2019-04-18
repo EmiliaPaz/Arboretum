@@ -1,3 +1,5 @@
+module Main exposing (..)
+
 import Browser exposing (Document)
 import Html exposing (Html, button, div, text, h1, h3, input, span, textarea, br)
 import Html.Events exposing (onClick, onInput)
@@ -55,7 +57,12 @@ update msg model =
       let
         c = newContent
         t = Tokenizer.tokenize (map (String.words) (String.lines c))
-        v = map Parser.parse t
+        -- v = map Parser.parse t
+        v = [ {name="a",term=(CTerm (CInt 1))}, 
+              {name="b",term=(Lam (VTerm "a") (Plus (VTerm "a") (CTerm (CInt 1)))) },
+              {name="c",term=(App (VTerm "b") (VTerm "a"))},
+              {name="d",term=(Plus (CTerm (CInt 10)) (CTerm(CBool True)))},
+              {name="e",term=(Tuple (CTerm (CInt 1)) (VTerm "c") )}]
         rs = genRenderInfos 3 v
       in
       ({ model |
@@ -204,6 +211,7 @@ listSubterms t =
     Or x y ->    [x, y]
     Lam x y ->   [x, y]
     App x y ->   [x, y]
+    Tuple x y -> [x, y]
     _ ->         []
 
 renderSubtermsRec : Int -> List Term -> CheckResult -> List (Html Msg)
@@ -270,6 +278,7 @@ renderTermInline result t =
         Or _ _    -> "||"
         Lam _ _   -> "->"
         App _ _   -> " "
+        Tuple _ _ -> ","
         _         -> ""
 
     subterms = renderSubterms argTerms result
@@ -278,7 +287,10 @@ renderTermInline result t =
       True ->
         case subterms of
           x :: xs ->
-            span [] ([x, text (" " ++ opStr)] ++ xs)
+            case t of 
+              Tuple _ _ -> span [] ([text ("(")] ++ [x, text (" " ++ opStr)] ++ xs ++ [text (")")]) 
+              _         -> span [] ([x, text (" " ++ opStr)] ++ xs)
+            
           _ ->
             text "rendering error"
       False ->
@@ -347,8 +359,9 @@ genRenderTree depth e t =
         Eq x y    -> [gTree x, gTree y]
         And x y   -> [gTree x, gTree y]
         Or x y    -> [gTree x, gTree y]
-        --Lam x y   -> [gTree x, gTree y]
+        -- Lam x y   -> [gTree x, gTree y]
         App x y   -> [gTree x, gTree y]
+        Tuple x y -> [gTree x, gTree y]
         _         -> []
 
     n =

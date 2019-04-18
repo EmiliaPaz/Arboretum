@@ -5,7 +5,7 @@ import Types exposing (Const(..), Term(..))
 import Environment exposing (Env, lookup)
 
 -- V(alue)Type is a type that a TreeAssembly term can evaluate to
-type VType = TBool | TInt | TLam VType VType
+type VType = TBool | TInt | TLam VType VType | TTuple VType VType
 
 
 
@@ -15,6 +15,7 @@ typeToString t =
     TBool -> "Bool"
     TInt  -> "Int"
     TLam a b -> "Lam" ++ " " ++ (typeToString a) ++ " " ++ (typeToString b)
+    TTuple a b -> "Tuple" ++ " " ++ (typeToString a) ++ " " ++ (typeToString b)
 
 {-
 CheckResult represents the outcome of typechecking a term
@@ -167,6 +168,7 @@ getTypeSignature env t =
     Eq _ _    -> [TInt, TInt, TBool]
     And _ _   -> [TBool, TBool, TBool]
     Or _ _    -> [TBool, TBool, TBool]
+    
     _         -> []
 
 
@@ -200,4 +202,9 @@ typecheck env t =
           (Checks x, Checks y) -> Checks (TLam x y)
           _ -> Invalid
       App x y -> typeCheckApp env t
+      Tuple a b ->
+        case (typecheck env a, typecheck env b) of
+          (Checks x, Checks y) -> Checks (TTuple x y)
+          _ -> Invalid
+
       _ -> checkSig sig args
