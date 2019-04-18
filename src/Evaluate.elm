@@ -3,7 +3,7 @@ module Evaluate exposing (..)
 import List exposing (..)
 import List.Extra exposing (elemIndex, getAt)
 import Types exposing (..)
-import Environment exposing (Env, lookup)
+import Environment exposing (Env, lookup, extend)
 import Typecheck exposing(substitute)
 
 -- Val is a value that a term can evaluate to
@@ -55,7 +55,7 @@ termToString t =
       "(" ++ (termToString t1) ++ " || " ++ (termToString t2) ++ ")"
 
     Lam t1 t2 ->
-      "(\\ " ++ t1 ++ " -> " ++ (termToString t2) ++ ")"
+      "(\\" ++ t1 ++ " -> " ++ (termToString t2) ++ ")"
 
     App t1 t2 ->
       "(" ++ (termToString t1) ++ (termToString t2) ++ ")"
@@ -107,6 +107,12 @@ takeOne (mx, my) =
         Just y ->  Just y
         Nothing -> Nothing
 
+valToTerm : Val -> Term
+valToTerm v =
+  case v of
+    VBool b -> CTerm (CBool b)
+    VInt i -> CTerm (CInt i)
+    VFun e s t -> Lam s t
 
 -- evaluates a term
 eval : Env -> Term -> Maybe Val
@@ -149,12 +155,20 @@ eval e t =
     Lam x y -> Just (VFun e x y)
 
     App x y ->
-      case x of
-        Lam w z -> evale (substitute z y w)
-        VTerm v ->
-          let lambda = lookup e v
-            in case lambda of
-              Just (Lam w z) -> evale (substitute z y w)
-              _ -> Nothing
+      case evale x of
+        Just (VFun e1 a b) ->
+          case evale y of
+            Just w ->
+              let e2 = extend e1 (a, valToTerm w, TNone) in --TODO fix
+                eval e2 b
+            _ -> Nothing
         _ -> Nothing
+    --   case x of
+    --     Lam w z -> evale (substitute z y w)
+    --     VTerm v ->
+    --       let lambda = lookup e v
+    --         in case lambda of
+    --           Just (Lam w z) -> evale (substitute z y w)
+    --           _ -> Nothing
+    --     _ -> Nothing
     _ -> Nothing

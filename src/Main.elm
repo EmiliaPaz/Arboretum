@@ -7,10 +7,10 @@ import Debug exposing (toString)
 
 import Tokenizer
 import Parser
-import Environment exposing (Env, lookup)
+import Environment exposing (Env, lookup, varsToEnv, envToVars)
 import Evaluate
 import Types exposing (..)
-import Typecheck exposing (CheckResult(..), typecheck, checkResultToString, typeToString)
+import Typecheck exposing (CheckResult(..), typecheck, typecheck2, checkResultToString, typeToString)
 
 
 -- MAIN
@@ -48,6 +48,8 @@ init _ =
 type Msg
   = Change String | IncDepth Int | DecDepth Int
 
+
+
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
@@ -55,7 +57,9 @@ update msg model =
       let
         c = newContent
         t = Tokenizer.tokenize (map (String.words) (String.lines c))
-        v = map Parser.parse t
+        v = envToVars (Parser.generateEnv [] t)
+        -- v1 = map Parser.parse t
+        -- v = envToVars (Parser.avoidDuplicates (varsToEnv v1))
         rs = genRenderInfos 3 v
       in
       ({ model |
@@ -95,7 +99,7 @@ filterUpdate cond upd xs =
 Generates a list of render infos.  This function exists mostly so that render
 infos can recieve ids.
 -}
-genRenderInfos : Int -> List Var -> List RenderTreeInfo
+genRenderInfos : Int -> List Var -> List RenderTreeInfo -- Changed List Var to Env
 genRenderInfos depth vars =
   List.indexedMap
     ( \i var ->
@@ -177,12 +181,12 @@ renderTerm : Env -> Term -> Html Msg
 renderTerm e t =
   let
     spanClass =
-      case typecheck e t of
+      case typecheck2 e t of
         Checks _    -> "type-checks"
         Fails _ _ _ _ -> "type-fails"
         Partial _   -> "type-partial"
         Invalid     -> "type-fails"
-    checkResult = typecheck e t
+    checkResult = typecheck2 e t
   in
     div [ class "text-div" ]
     [ renderTermInline checkResult t
@@ -335,7 +339,7 @@ genRenderTree depth e t =
   let
     dnew = depth - 1
     gTree = genRenderTree dnew e
-    checkStatus = typecheck e t
+    checkStatus = typecheck2 e t
     children =
       case t of
         CTerm _   -> []

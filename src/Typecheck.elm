@@ -1,11 +1,8 @@
-module Typecheck exposing (CheckResult(..), VType(..), typeToString, checkResultToString, typecheck, substitute)
+module Typecheck exposing (CheckResult(..), typeToString, checkResultToString, typecheck, typecheck2, substitute)
 import List exposing (..)
 import List.Extra exposing (elemIndex, getAt)
-import Types exposing (Const(..), Term(..))
-import Environment exposing (Env, lookup, extend)
-
--- V(alue)Type is a type that a TreeAssembly term can evaluate to
-type VType = TBool | TInt | TLam VType VType | TAny
+import Types exposing (Const(..), Term(..), VType(..), getTypeSignature)
+import Environment exposing (Env, lookup, lookupType, lookupName, extend)
 
 
 
@@ -14,8 +11,9 @@ typeToString t =
   case t of
     TBool -> "Bool"
     TInt  -> "Int"
-    TLam a b -> (typeToString a) ++ " -> " ++ (typeToString b)
+    TFun a b -> (typeToString a) ++ " -> " ++ (typeToString b)
     TAny -> "Any"
+    TNone -> "None"
 
 {-
 CheckResult represents the outcome of typechecking a term
@@ -140,8 +138,8 @@ typeCheckApp env t =
     _ -> Invalid
 
 
-getTypeSignature : Env -> Term -> List VType
-getTypeSignature env t =
+getTypeList : Env -> Term -> List VType
+getTypeList env t =
   case t of
     CTerm c ->
       case c of
@@ -203,7 +201,7 @@ typecheck env t =
   let
     -- curry environment into the typechecker right away
     check = typecheck env
-    sig = getTypeSignature env t
+    sig = getTypeList env t
 
     args =
       case t of
@@ -227,19 +225,19 @@ typecheck env t =
         let
           newEnv =
             case b of
-              Plus x y -> extend env (a, CTerm (CInt 0))
-              Minus x y -> extend env (a, CTerm (CInt 0))
-              Times x y -> extend env (a, CTerm (CInt 1))
-              Eq x y -> extend env (a, CTerm (CInt 0))
-              And x y -> extend env (a, CTerm (CBool False))
-              Or x y -> extend env (a, CTerm (CBool True))
-              _ -> extend env (a, Missing)
-          typeSig = getTypeSignature newEnv b
+              Plus x y -> extend env (a, CTerm (CInt 0), TInt)
+              Minus x y -> extend env (a, CTerm (CInt 0), TInt)
+              Times x y -> extend env (a, CTerm (CInt 1), TInt)
+              Eq x y -> extend env (a, CTerm (CInt 0), TInt)
+              And x y -> extend env (a, CTerm (CBool False), TBool)
+              Or x y -> extend env (a, CTerm (CBool True), TBool)
+              _ -> extend env (a, Missing, TNone)
+          typeSig = getTypeList newEnv b
         in
           case typeSig of
             [m] ->
               case typecheck newEnv b of
-                Checks y -> Checks (TLam TAny y)
+                Checks y -> Checks (TFun TAny y)
                 _ -> Invalid
 
             [m, n, p] ->
@@ -252,11 +250,37 @@ typecheck env t =
                       _ -> TAny -- should not be hit
               in
                 case typecheck newEnv b of
-                  Checks ot -> Checks (TLam it ot)
-                  Partial ot -> Partial (TLam it ot)
-                  Fails i ot1 ot2 ot3 -> Fails i (TLam it ot1) (TLam it ot2) (TLam it ot3)
+                  Checks ot -> Checks (TFun it ot)
+                  Partial ot -> Partial (TFun it ot)
+                  Fails i ot1 ot2 ot3 -> Fails i (TFun it ot1) (TFun it ot2) (TFun it ot3)
                   Invalid -> Invalid
 
             _ -> Invalid
       App x y -> typeCheckApp env t
       _ -> checkSig sig args
+
+typecheck2 : Env -> Term -> CheckResult
+typecheck2 env t =
+  case lookupName env t of
+    Just s ->
+      case lookupType env s of
+        Just vt -> Checks vt
+        Nothing -> Invalid
+    Nothing -> Invalid
+  -- typecheck env t
+  -- case t of
+  --   VTerm s ->
+  --     case (lookupType env s) of
+  --       Just y -> Checks y
+  --       _ -> Partial TBool
+  --   _ -> Checks (getTypeSignature t)
+
+  -- case getTypeSignature t of
+  --   TNone ->
+  --     case t of
+  --       VTerm s ->
+  --         case (lookupType env s) of
+  --           Just y -> Checks y
+  --           _ -> Partial TBool
+  --       _ -> Partial TInt
+  --   other -> Checks other

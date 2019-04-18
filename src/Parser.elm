@@ -1,6 +1,7 @@
 module Parser exposing (..)
 
 import List exposing (head,tail,take,drop,foldr)
+import Environment exposing (lookup, Env, replaceType, replaceTerm, replaceVar)
 import Types exposing (..)
 import Debug exposing (toString)
 
@@ -15,12 +16,76 @@ fromMaybeList ls = case ls of
                   Nothing -> []
                   Just list -> list
 
+-- avoidDuplicates : Env -> Env
+-- avoidDuplicates env = env
+--   case env of
+--     v :: vs ->
+--       case vs of
+--         [] -> env
+--         _ ->
+--           let newEnv = avoidDuplicatesSingle env v
+--           in avoidDuplicates newEnv
+--     [] -> env
+--
+-- avoidDuplicatesSingle : Env -> (String, Term, VType) -> Env
+-- avoidDuplicatesSingle e (s, t, vt) =
+--   let
+--       e1 = replaceTerm e s t
+--       e2 = replaceType e1 s vt
+--   in
+--     e2
+
+generateEnv : Env -> List (List Token) -> Env
+generateEnv e tokens =
+  let tkns = head (tokens)
+  in case tkns of
+      Just a ->
+        let
+          item = parse a
+          (s, t, vt) = (item.name, item.term, item.vtype)
+        in
+          generateEnv (replaceVar e (s, t, vt)) (drop 1 tokens)
+      _ -> e
 
 parse : List Token -> Var
 parse tokens = case take 2 tokens of
                     [TokVar v,TokAssign] -> let (tree, toks) = expression (drop 2 tokens)
-                                                    in {name=v, term=tree}
-                    _                    -> {name="",term=EmptyTree}
+                                                -- typeSign = getTypeSignature tree
+                                              in {name=v, term=tree, vtype = TNone}
+                    [TokVar v,TokHasType] -> let myType = parseTypeAnnotation (prepareTypeList (drop 2 tokens))
+                                              in {name=v, term=EmptyTree, vtype=myType}
+                    _                    -> {name="",term=EmptyTree, vtype=TNone}
+
+
+tokTypeNameToVType : Token -> Maybe VType
+tokTypeNameToVType t =
+  case t of
+    TokTypeName "Int" -> Just TInt
+    TokTypeName "Bool" -> Just TBool
+    TokTypeName "Any" -> Just TAny
+    _ -> Nothing
+
+prepareTypeList : List Token -> List VType
+prepareTypeList tokens =
+  case (head tokens) of
+    Just tok ->
+      case tokTypeNameToVType tok of
+        Just t -> [t] ++ prepareTypeList (drop 1 tokens)
+        _ -> prepareTypeList (drop 1 tokens)
+    _ -> []
+
+parseTypeAnnotation : List VType -> VType
+parseTypeAnnotation tokens =
+  case tokens of
+    t :: u :: ts ->
+      case ts of
+        [] -> TFun t u
+        _ -> TFun (TFun t u) (parseTypeAnnotation ts)
+    t :: ts ->
+      case ts of
+        [] -> t
+        _ -> TFun t (parseTypeAnnotation ts)
+    [] -> TNone
 
 twoSidedConnective : Term -> List Token -> TokTSC -> (Term, Term, List Token)
 twoSidedConnective left tokens typeSign = case (left, tokens, typeSign) of
