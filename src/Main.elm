@@ -190,6 +190,8 @@ renderTerm e t =
     , span [ class spanClass ] [ text (checkResultToString checkResult) ]
     ]
 
+-- stringToTerm : String -> Maybe Term
+-- stringToTerm s =
 
 listSubterms : Term -> List Term
 listSubterms t =
@@ -202,7 +204,7 @@ listSubterms t =
     Eq x y ->    [x, y]
     And x y ->   [x, y]
     Or x y ->    [x, y]
-    Lam x y ->   [x, y]
+    Lam x y ->   [VTerm ("\\" ++ x), y]
     App x y ->   [x, y]
     _ ->         []
 

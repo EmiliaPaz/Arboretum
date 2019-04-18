@@ -2,10 +2,10 @@ module Typecheck exposing (CheckResult(..), VType(..), typeToString, checkResult
 import List exposing (..)
 import List.Extra exposing (elemIndex, getAt)
 import Types exposing (Const(..), Term(..))
-import Environment exposing (Env, lookup)
+import Environment exposing (Env, lookup, extend)
 
 -- V(alue)Type is a type that a TreeAssembly term can evaluate to
-type VType = TBool | TInt | TLam VType VType
+type VType = TBool | TInt | TLam VType VType | TAny
 
 
 
@@ -14,7 +14,8 @@ typeToString t =
   case t of
     TBool -> "Bool"
     TInt  -> "Int"
-    TLam a b -> "Lam" ++ " " ++ (typeToString a) ++ " " ++ (typeToString b)
+    TLam a b -> (typeToString a) ++ " -> " ++ (typeToString b)
+    TAny -> "Any"
 
 {-
 CheckResult represents the outcome of typechecking a term
@@ -113,10 +114,7 @@ substitute old new n =
   case old of
     CTerm c -> CTerm c
     VTerm v -> if n == v then new else VTerm v
-    Lam t1 t2 ->
-      case t1 of
-        VTerm v -> if n == v then Lam t1 t2 else Lam t1 (substitute t2 new n)
-        _ -> Lam t1 t2
+    Lam t1 t2 -> if t1 == n then Lam t1 t2 else Lam t1 (substitute t2 new n)
     App t1 t2 -> App (substitute t1 new n) (substitute t2 new n)
     Plus t1 t2 -> Plus (substitute t1 new n) (substitute t2 new n)
     Minus t1 t2 -> Minus (substitute t1 new n) (substitute t2 new n)
@@ -132,17 +130,11 @@ typeCheckApp env t =
   case t of
     App x y ->
       case x of
-        Lam w z ->
-          case w of
-            VTerm n -> typecheck env (substitute z y n)
-            _ -> Invalid
+        Lam w z -> typecheck env (substitute z y w)
         VTerm v ->
           let lambda = lookup env v
             in case lambda of
-              Just (Lam w z) ->
-                case w of
-                  VTerm n -> typecheck env (substitute z y n)
-                  _ -> Invalid
+              Just (Lam w z) -> typecheck env (substitute z y w)
               _ -> Invalid
         _ -> Invalid
     _ -> Invalid
@@ -170,6 +162,42 @@ getTypeSignature env t =
     _         -> []
 
 
+argPosition : String -> Term -> Int
+argPosition a b =
+  let z = VTerm a in
+    case b of
+      Plus x y ->
+        if x == z && y == z then 3
+        else if x == z && y /= z then 2
+        else if x /= z && y == z then 1
+        else 0
+      Minus x y ->
+        if x == z && y == z then 3
+        else if x == z && y /= z then 2
+        else if x /= z && y == z then 1
+        else 0
+      Times x y ->
+        if x == z && y == z then 3
+        else if x == z && y /= z then 2
+        else if x /= z && y == z then 1
+        else 0
+      Eq x y    ->
+        if x == z && y == z then 3
+        else if x == z && y /= z then 2
+        else if x /= z && y == z then 1
+        else 0
+      And x y   ->
+        if x == z && y == z then 3
+        else if x == z && y /= z then 2
+        else if x /= z && y == z then 1
+        else 0
+      Or x y    ->
+        if x == z && y == z then 3
+        else if x == z && y /= z then 2
+        else if x /= z && y == z then 1
+        else 0
+      _ -> -1
+
 typecheck : Env -> Term -> CheckResult
 typecheck env t =
   let
@@ -194,9 +222,41 @@ typecheck env t =
         case lookup env v of
           Just sub -> check sub
           Nothing  -> Invalid
+
       Lam a b ->
-        case (typecheck env a, typecheck env b) of
-          (Checks x, Checks y) -> Checks (TLam x y)
-          _ -> Invalid
+        let
+          newEnv =
+            case b of
+              Plus x y -> extend env (a, CTerm (CInt 0))
+              Minus x y -> extend env (a, CTerm (CInt 0))
+              Times x y -> extend env (a, CTerm (CInt 1))
+              Eq x y -> extend env (a, CTerm (CInt 0))
+              And x y -> extend env (a, CTerm (CBool False))
+              Or x y -> extend env (a, CTerm (CBool True))
+              _ -> extend env (a, Missing)
+          typeSig = getTypeSignature newEnv b
+        in
+          case typeSig of
+            [m] ->
+              case typecheck newEnv b of
+                Checks y -> Checks (TLam TAny y)
+                _ -> Invalid
+
+            [m, n, p] ->
+              let it =
+                    case argPosition a b of
+                      3 -> m
+                      2 -> n
+                      1 -> m
+                      0 -> TAny
+                      _ -> TAny -- should not be hit
+              in
+                case typecheck newEnv b of
+                  Checks ot -> Checks (TLam it ot)
+                  Partial ot -> Partial (TLam it ot)
+                  Fails i ot1 ot2 ot3 -> Fails i (TLam it ot1) (TLam it ot2) (TLam it ot3)
+                  Invalid -> Invalid
+
+            _ -> Invalid
       App x y -> typeCheckApp env t
       _ -> checkSig sig args

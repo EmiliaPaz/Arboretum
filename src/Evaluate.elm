@@ -21,7 +21,7 @@ valToString v =
   case v of
     Just (VBool x) -> boolToString x
     Just (VInt x)  -> String.fromInt x
-    Just (VFun e n t) ->  "\\" ++ n ++ "->" ++ (termToString t)
+    Just (VFun e n t) ->  "\\" ++ n ++ " -> " ++ (termToString t)
     Nothing        -> "Undefined"
 
 
@@ -55,7 +55,7 @@ termToString t =
       "(" ++ (termToString t1) ++ " || " ++ (termToString t2) ++ ")"
 
     Lam t1 t2 ->
-      "(\\ " ++ (termToString t1) ++ " -> " ++ (termToString t2) ++ ")"
+      "(\\ " ++ t1 ++ " -> " ++ (termToString t2) ++ ")"
 
     App t1 t2 ->
       "(" ++ (termToString t1) ++ (termToString t2) ++ ")"
@@ -146,25 +146,15 @@ eval e t =
     Or x y ->
       wrapBool ( tryBinFn (||) (tryBool (evale x)) (tryBool (evale y)) )
 
-    Lam x y ->
-      case x of
-        VTerm n -> Just (VFun e n y)
-        _ -> Nothing
-
+    Lam x y -> Just (VFun e x y)
 
     App x y ->
       case x of
-        Lam w z ->
-          case w of
-            VTerm n -> evale (substitute z y n)
-            _ -> Nothing
+        Lam w z -> evale (substitute z y w)
         VTerm v ->
           let lambda = lookup e v
             in case lambda of
-              Just (Lam w z) ->
-                case w of
-                  VTerm n -> evale (substitute z y n)
-                  _ -> Nothing
+              Just (Lam w z) -> evale (substitute z y w)
               _ -> Nothing
         _ -> Nothing
     _ -> Nothing

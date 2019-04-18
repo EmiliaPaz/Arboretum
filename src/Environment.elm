@@ -17,7 +17,6 @@ lookup e s =
         Just t
       else lookup vs s
 
-
 extend : Env -> (String, Term) -> Env
 extend e v =
   [v] ++ e

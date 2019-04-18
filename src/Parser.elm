@@ -55,8 +55,13 @@ expression tokens = let (l, tokens2) = expr tokens
                                                 TTSCBool TokOr  -> (Or left right, tokens3)
                                                 TTSCBool TokAnd  -> (And left right, tokens3)
                                                 TTSCBool TokEq  -> (Eq left right, tokens3)
-                        Just TokArrow -> let (body, tokens4) = expression (fromMaybeList(tail tokens2))
-                                      in (Lam l body, tokens4)
+                        Just TokArrow ->
+                                      case l of
+                                        VTerm v -> let
+                                                    (body, tokens4) = expression (fromMaybeList(tail tokens2))
+                                                   in (Lam v body, tokens4)
+                                        _ -> (EmptyTree, []) --Shouldn't hit this case
+
                         _ ->
                           case l of
                             Lam _ _ ->
