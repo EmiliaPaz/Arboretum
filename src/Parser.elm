@@ -16,25 +16,6 @@ fromMaybeList ls = case ls of
                   Nothing -> []
                   Just list -> list
 
--- avoidDuplicates : Env -> Env
--- avoidDuplicates env = env
---   case env of
---     v :: vs ->
---       case vs of
---         [] -> env
---         _ ->
---           let newEnv = avoidDuplicatesSingle env v
---           in avoidDuplicates newEnv
---     [] -> env
---
--- avoidDuplicatesSingle : Env -> (String, Term, VType) -> Env
--- avoidDuplicatesSingle e (s, t, vt) =
---   let
---       e1 = replaceTerm e s t
---       e2 = replaceType e1 s vt
---   in
---     e2
-
 generateEnv : Env -> List (List Token) -> Env
 generateEnv e tokens =
   let tkns = head (tokens)

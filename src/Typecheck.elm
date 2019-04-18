@@ -259,14 +259,78 @@ typecheck env t =
       App x y -> typeCheckApp env t
       _ -> checkSig sig args
 
+
 typecheck2 : Env -> Term -> CheckResult
 typecheck2 env t =
-  case lookupName env t of
-    Just s ->
-      case lookupType env s of
-        Just vt -> Checks vt
-        Nothing -> Invalid
-    Nothing -> Invalid
+  let
+    -- curry environment into the typechecker right away
+    check = typecheck2 env
+    sig = getTypeList env t
+
+    args =
+      case t of
+        CTerm _   -> []
+        VTerm _   -> []
+        Plus x y  -> (check x) :: (check y) :: []
+        Minus x y -> (check x) :: (check y) :: []
+        Times x y -> (check x) :: (check y) :: []
+        Eq x y    -> (check x) :: (check y) :: []
+        And x y   -> (check x) :: (check y) :: []
+        Or x y    -> (check x) :: (check y) :: []
+        _         -> []
+  in
+    case t of
+      VTerm v ->
+        case lookup env v of
+          Just sub -> check sub
+          Nothing  -> Invalid
+
+      Lam a b ->
+        let
+          newEnv =
+            case b of
+              Plus x y -> extend env (a, CTerm (CInt 0), TInt)
+              Minus x y -> extend env (a, CTerm (CInt 0), TInt)
+              Times x y -> extend env (a, CTerm (CInt 1), TInt)
+              Eq x y -> extend env (a, CTerm (CInt 0), TInt)
+              And x y -> extend env (a, CTerm (CBool False), TBool)
+              Or x y -> extend env (a, CTerm (CBool True), TBool)
+              _ -> extend env (a, Missing, TNone)
+          typeSig = getTypeList newEnv b
+        in
+          case typeSig of
+            [m] ->
+              case typecheck2 newEnv b of
+                Checks y -> Checks (TFun TAny y)
+                _ -> Invalid
+
+            [m, n, p] ->
+              let it =
+                    case argPosition a b of
+                      3 -> m
+                      2 -> n
+                      1 -> m
+                      0 -> TAny
+                      _ -> TAny -- should not be hit
+              in
+                case typecheck2 newEnv b of
+                  Checks ot -> Checks (TFun it ot)
+                  Partial ot -> Partial (TFun it ot)
+                  Fails i ot1 ot2 ot3 -> Fails i (TFun it ot1) (TFun it ot2) (TFun it ot3)
+                  Invalid -> Invalid
+
+            _ -> Invalid
+      App x y -> typeCheckApp env t
+      _ -> checkSig sig args
+
+
+  -- case lookupName env t of
+  --   Just s ->
+  --     case lookupType env s of
+  --       Just vt -> Checks vt
+  --       Nothing -> Invalid
+  --   Nothing -> Invalid
+
   -- typecheck env t
   -- case t of
   --   VTerm s ->
