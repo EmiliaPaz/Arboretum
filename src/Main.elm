@@ -10,7 +10,7 @@ import Parser
 import Environment exposing (Env, lookup, varsToEnv, envToVars)
 import Evaluate
 import Types exposing (..)
-import Typecheck exposing (CheckResult(..), typecheck, typecheck2, checkResultToString, typeToString)
+import Typecheck exposing (CheckResult(..), typecheck, checkResultToString, typeToString)
 
 
 -- MAIN
@@ -181,12 +181,12 @@ renderTerm : Env -> Term -> Html Msg
 renderTerm e t =
   let
     spanClass =
-      case typecheck2 e t of
+      case typecheck e t of
         Checks _    -> "type-checks"
         Fails _ _ _ _ -> "type-fails"
         Partial _   -> "type-partial"
         Invalid     -> "type-fails"
-    checkResult = typecheck2 e t
+    checkResult = typecheck e t
   in
     div [ class "text-div" ]
     [ renderTermInline checkResult t
@@ -339,7 +339,7 @@ genRenderTree depth e t =
   let
     dnew = depth - 1
     gTree = genRenderTree dnew e
-    checkStatus = typecheck2 e t
+    checkStatus = typecheck e t
     children =
       case t of
         CTerm _   -> []

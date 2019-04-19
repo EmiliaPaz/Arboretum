@@ -3,8 +3,7 @@ module Evaluate exposing (..)
 import List exposing (..)
 import List.Extra exposing (elemIndex, getAt)
 import Types exposing (..)
-import Environment exposing (Env, lookup, extend)
-import Typecheck exposing(substitute)
+import Environment exposing (Env, lookup, extend, addOrModify)
 
 -- Val is a value that a term can evaluate to
 type Val = VBool Bool | VInt Int | VFun Env String Term
@@ -152,23 +151,17 @@ eval e t =
     Or x y ->
       wrapBool ( tryBinFn (||) (tryBool (evale x)) (tryBool (evale y)) )
 
+    -- Lambda gets evaluated to a closure.
     Lam x y -> Just (VFun e x y)
 
+    --Same as before, except we use a closure rather than substitution.
     App x y ->
       case evale x of
         Just (VFun e1 a b) ->
           case evale y of
             Just w ->
-              let e2 = extend e1 (a, valToTerm w, TNone) in --TODO fix
+              let e2 = addOrModify e1 (a, valToTerm w, TNone) in
                 eval e2 b
             _ -> Nothing
         _ -> Nothing
-    --   case x of
-    --     Lam w z -> evale (substitute z y w)
-    --     VTerm v ->
-    --       let lambda = lookup e v
-    --         in case lambda of
-    --           Just (Lam w z) -> evale (substitute z y w)
-    --           _ -> Nothing
-    --     _ -> Nothing
     _ -> Nothing

@@ -1,10 +1,12 @@
-module Environment exposing (Env, lookup, lookupType, lookupName, extend, varsToEnv, replaceType, replaceTerm, envToVars, replaceVar)
+module Environment exposing (Env, lookup, lookupType, lookupName, extend, varsToEnv, replaceType, replaceTerm, envToVars, addOrModify)
 
 import List exposing (map)
 import Types exposing (Term(..), Var, VType(..))
-
 type alias Env = List (String, Term, VType)
 
+{-
+  Note: It might be useful combine lookup and lookupType into a single function.
+-}
 
 lookup : Env -> String -> Maybe Term
 lookup e s =
@@ -28,6 +30,10 @@ lookupType e s =
         Just vt
       else lookupType vs s
 
+{-
+  This is a bit happy. There are shadowing issues when the user inputs identical
+  terms with different names; we should probably find a better way to do this.
+-}
 lookupName : Env -> Term -> Maybe String
 lookupName e t1 =
   case e of
@@ -39,29 +45,42 @@ lookupName e t1 =
         Just id
       else lookupName vs t1
 
+{-
+  Returns true if the string doesn't match the name of the variable.
+-}
 doesNotMatch : String -> (String, Term, VType) -> Bool
 doesNotMatch s (s1,t,v) =
     if s /= s1 then True
     else False
 
+{-
+  If the variable is part of the environment, replace its term.
+  Otherwise, insert the variable into the environment (with unknown type).
+-}
 replaceTerm : Env -> String -> Term -> Env
 replaceTerm e s t =
   case lookupType e s of
-    -- Just vt -> {name=s, term=t, vtype=vt}
-    -- Nothing -> {name=s, term=t, vtype=TNone}
     Just vt -> extend (List.filter (doesNotMatch s) e) (s, t, vt)
     Nothing -> extend e (s,t,TNone) --Can't replace
 
+
+{-
+  If the variable is part of the environment, replace its type.
+  Otherwise, insert the variable into the environment (with unknown term).
+-}
 replaceType : Env -> String -> VType -> Env
 replaceType e s vt =
   case lookup e s of
-    -- Just t -> {name=s, term=t, vtype=vt}
-    -- Nothing -> {name=s, term=EmptyTree, vtype=vt}
     Just t -> extend (List.filter (doesNotMatch s) e) (s, t, vt)
     Nothing -> extend e (s,EmptyTree,vt) --Can't replace
 
-replaceVar : Env -> (String, Term, VType) -> Env
-replaceVar e (s, t, vt) =
+{-
+  If the variable is part of the environment and either the term of the type
+  is unknown, replace the unknown term/variable with a specific term/variable.
+  Otherwise, insert the variable into the environment.
+-}
+addOrModify : Env -> (String, Term, VType) -> Env
+addOrModify e (s, t, vt) =
   case (lookup e s, lookupType e s) of
     (Just t1, Just vt1) ->
       case (t1, vt1) of
@@ -82,6 +101,9 @@ varsToEnv : List Var -> Env
 varsToEnv vs =
   map (\v -> (v.name, v.term, v.vtype)) vs
 
+{-
+  The reverse of varsToEnv.
+-}
 envToVars : Env -> List Var
 envToVars env =
   case env of

@@ -1,7 +1,7 @@
 module Parser exposing (..)
 
 import List exposing (head,tail,take,drop,foldr)
-import Environment exposing (lookup, Env, replaceType, replaceTerm, replaceVar)
+import Environment exposing (lookup, Env, replaceType, replaceTerm, addOrModify)
 import Types exposing (..)
 import Debug exposing (toString)
 
@@ -25,13 +25,12 @@ generateEnv e tokens =
           item = parse a
           (s, t, vt) = (item.name, item.term, item.vtype)
         in
-          generateEnv (replaceVar e (s, t, vt)) (drop 1 tokens)
+          generateEnv (addOrModify e (s, t, vt)) (drop 1 tokens)
       _ -> e
 
 parse : List Token -> Var
 parse tokens = case take 2 tokens of
                     [TokVar v,TokAssign] -> let (tree, toks) = expression (drop 2 tokens)
-                                                -- typeSign = getTypeSignature tree
                                               in {name=v, term=tree, vtype = TNone}
                     [TokVar v,TokHasType] -> let myType = listToTypeSign (prepareTypeList (drop 2 tokens))
                                               in {name=v, term=EmptyTree, vtype=myType}
