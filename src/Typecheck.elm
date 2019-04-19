@@ -2,7 +2,7 @@ module Typecheck exposing (CheckResult(..), typeToString, checkResultToString, t
 import List exposing (..)
 import List.Extra exposing (elemIndex, getAt)
 import Types exposing (Const(..), Term(..), VType(..), getTypeSignature, listToTypeSign)
-import Environment exposing (Env, lookup, lookupType, lookupName, extend)
+import Environment exposing (Env, lookup, lookupType, lookupName, extend, replaceVar)
 
 
 
@@ -349,8 +349,40 @@ generateTypeList env t =
       case lookup env s of
         Just term -> [getTypeSignature term] --assuming it already exists
         Nothing -> []
+    Plus x y ->
+      case (generateTypeList env x, generateTypeList env y) of
+        ([], []) -> []
+        (a, []) -> a
+        ([], b) -> b
+        (a, b) ->
+          case (x, y) of
+            (VTerm m, VTerm n) ->
+              if m == n then a else a ++ b
+            _ -> a
     Lam a b -> generateTypeList (insertArg env a b) b
     _ -> []
+
+modifyArgs : Env -> Term -> Env
+modifyArgs env t =
+  case t of
+    Lam a b ->
+      case getTypeSignature b of
+        TInt -> modifyArgs (replaceVar env (a,CTerm (CInt 0), TInt)) b
+        TBool -> modifyArgs (replaceVar env (a,CTerm (CBool True), TBool)) b
+        TFun x y ->
+          case y of
+            TInt -> modifyArgs (replaceVar env (a,CTerm (CInt 0), TInt)) b
+            TBool -> modifyArgs (replaceVar env (a,CTerm (CBool True), TBool)) b
+            _ -> modifyArgs env b
+        TAny -> modifyArgs env b
+        TNone -> modifyArgs env b
+    _ -> env
+
+insertArgs : Env -> Term -> Env
+insertArgs env t =
+  case t of
+    Lam a b -> insertArgs (extend env (a, EmptyTree, TNone)) b
+    _ -> env
 
 insertArg : Env -> String -> Term -> Env
 insertArg env a b =
@@ -361,8 +393,21 @@ insertArg env a b =
     Eq x y -> extend env (a, CTerm (CInt 0), TInt)
     And x y -> extend env (a, CTerm (CBool False), TBool)
     Or x y -> extend env (a, CTerm (CBool True), TBool)
-    Lam x y -> insertArg env x y
-    _ -> extend env (a, Missing, TNone)
+    Lam x y ->
+      let newEnv = insertArg env x y in
+        case typecheck2 newEnv y of --temporarily
+          Checks z ->
+            case z of
+              TInt -> extend newEnv (a, CTerm (CInt 0), TInt)
+              TBool -> extend newEnv (a, CTerm (CBool True), TBool)
+              _ -> extend newEnv (a, CTerm (CBool False), TAny) -- Change later
+          Partial z -> --It's ok if it's partial.. I think
+            case z of
+              TInt -> extend newEnv (a, CTerm (CInt 0), TInt)
+              TBool -> extend newEnv (a, CTerm (CBool True), TBool)
+              _ -> extend newEnv (a, CTerm (CBool False), TAny) -- Change later
+          _ -> extend newEnv (a, CTerm (CBool False), TNone) -- Change
+    _ -> extend env (a, Missing, TNone) -- Change
 
 typecheck2 : Env -> Term -> CheckResult
 typecheck2 env t =
@@ -379,8 +424,9 @@ typecheck2 env t =
           Nothing  -> Invalid
 
       Lam a b ->
+        -- insertArgs env (Lam a b)
         let
-          newEnv = insertArg env a b
+          newEnv =  modifyArgs (insertArgs env (Lam a b)) (Lam a b)
           funcSignList =
             case check b of
               Checks m -> (generateTypeList newEnv b) ++ [m]
@@ -411,29 +457,3 @@ typecheck2 env t =
 
       App x y -> typeCheckApp env t
       _ -> checkSig sig args
-
-
-  -- case lookupName env t of
-  --   Just s ->
-  --     case lookupType env s of
-  --       Just vt -> Checks vt
-  --       Nothing -> Invalid
-  --   Nothing -> Invalid
-
-  -- typecheck env t
-  -- case t of
-  --   VTerm s ->
-  --     case (lookupType env s) of
-  --       Just y -> Checks y
-  --       _ -> Partial TBool
-  --   _ -> Checks (getTypeSignature t)
-
-  -- case getTypeSignature t of
-  --   TNone ->
-  --     case t of
-  --       VTerm s ->
-  --         case (lookupType env s) of
-  --           Just y -> Checks y
-  --           _ -> Partial TBool
-  --       _ -> Partial TInt
-  --   other -> Checks other

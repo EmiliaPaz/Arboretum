@@ -39,7 +39,7 @@ getTypeSignature t =
     Eq x y -> TFun (TFun TInt TInt) TBool
     And x y -> TFun (TFun TBool TBool) TBool
     Or x y -> TFun (TFun TBool TBool) TBool
-    Lam x y -> TNone --Temporarily
+    Lam x y -> getTypeSignature y --TODO FIX
     App x y -> TNone --Temporarily
     _ -> TNone
 
