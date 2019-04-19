@@ -6,7 +6,7 @@ import Html.Events exposing (onClick, onInput)
 import Html.Attributes exposing (..)
 import List exposing (map,head,tail)
 import Debug exposing (toString)
-import Json.Decode as Decode
+import Json.Decode as Decode exposing (Decoder, field, bool, int, string)
 
 import Tokenizer
 import Parser
@@ -133,6 +133,36 @@ subscriptions _ =
 decodeAst : Decode.Value -> Term
 decodeAst _ = CTerm (CInt 42)
 
+
+assignDecoder : Decoder Term
+assignDecoder = 
+  field "expresssion" exprDecoder
+
+exprDecoder : Decoder Term
+exprDecoder =
+  field "type" string
+    |> Decode.andThen exprSwitch
+
+exprSwitch : String -> Decoder Term
+exprSwitch s =
+  case s of
+    "INT"  -> intDecoder
+    "BOOL" -> boolDecoder
+    --"ADD_EXPR" -> addDecoder
+    _      -> Decode.fail ("unrecognized type: " ++ s)
+
+
+intDecoder : Decoder Term
+intDecoder =
+  field "value" int
+    |> Decode.andThen
+      (\i -> Decode.succeed (CTerm (CInt i)))
+
+boolDecoder : Decoder Term
+boolDecoder =
+  field "value" bool
+    |> Decode.andThen
+      (\b -> Decode.succeed (CTerm (CBool b)))
 
 -- VIEW
 
