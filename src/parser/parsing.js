@@ -128,7 +128,7 @@ module.exports = {
 
         if (parserInstance.errors.length > 0) {
             throw Error(
-                "Sad sad panda, parsing errors detected!\n" +
+                "Parsing Error:\n" +
                     parserInstance.errors[0].message
             )
         }
