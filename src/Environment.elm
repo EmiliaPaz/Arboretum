@@ -75,9 +75,10 @@ replaceType e s vt =
     Nothing -> addOrModify e (False, True) (s, EmptyTree, vt) --Can't replace
 
 {-
-  If the variable is part of the environment and either the term of the type
-  is unknown, replace the unknown term/variable with a specific term/variable.
-  Otherwise, insert the variable into the environment.
+  If the variable is part of the environment and, depending on the pair (Bool, Bool)
+  modify the term and/or the type. For instance, the pair (True, False) implies
+  switching the term for a new one, but keeping the type as is.
+  If the variable does not exist, insert it into the environment.
 -}
 addOrModify : Env -> (Bool, Bool) -> (String, Term, VType) -> Env
 addOrModify e flag (s, t, vt) =
