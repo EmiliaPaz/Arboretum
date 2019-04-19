@@ -349,63 +349,7 @@ generateTypeList env t =
       case lookup env s of
         Just term -> [getTypeSignature term] --assuming it already exists
         Nothing -> []
-    Plus x y ->
-      case (generateTypeList env x, generateTypeList env y) of
-        ([], []) -> []
-        (a, []) -> a
-        ([], b) -> b
-        (a, b) ->
-          case a == b of
-            True -> a
-            False -> a ++ b
-    Minus x y ->
-      case (generateTypeList env x, generateTypeList env y) of
-        ([], []) -> []
-        (a, []) -> a
-        ([], b) -> b
-        (a, b) ->
-          case a == b of
-            True -> a
-            False -> a ++ b
-    Times x y ->
-      case (generateTypeList env x, generateTypeList env y) of
-        ([], []) -> []
-        (a, []) -> a
-        ([], b) -> b
-        (a, b) ->
-          case a == b of
-            True -> a
-            False -> a ++ b
-    Eq x y ->
-      case (generateTypeList env x, generateTypeList env y) of
-        ([], []) -> []
-        (a, []) -> a
-        ([], b) -> b
-        (a, b) ->
-          case a == b of
-            True -> a
-            False -> a ++ b
-    And x y ->
-      case (generateTypeList env x, generateTypeList env y) of
-        ([], []) -> []
-        (a, []) -> a
-        ([], b) -> b
-        (a, b) ->
-          case a == b of
-            True -> a
-            False -> a ++ b
-    Or x y ->
-      case (generateTypeList env x, generateTypeList env y) of
-        ([], []) -> []
-        (a, []) -> a
-        ([], b) -> b
-        (a, b) ->
-          case a == b of
-            True -> a
-            False -> a ++ b
-    Lam x y ->
-      let newEnv = insertArg env x y in
-        generateTypeList newEnv y
+    Lam a b -> generateTypeList (insertArg env a b) b
     _ -> []
 
 insertArg : Env -> String -> Term -> Env
