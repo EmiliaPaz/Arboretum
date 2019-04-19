@@ -31,7 +31,7 @@ lookupType e s =
       else lookupType vs s
 
 {-
-  This is a bit happy. There are shadowing issues when the user inputs identical
+  This is a bit hacky. There are shadowing issues when the user inputs identical
   terms with different names; we should probably find a better way to do this.
 -}
 lookupName : Env -> Term -> Maybe String
