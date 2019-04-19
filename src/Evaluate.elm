@@ -160,7 +160,7 @@ eval e t =
         Just (VFun e1 a b) ->
           case evale y of
             Just w ->
-              let e2 = addOrModify e1 (a, valToTerm w, TNone) in
+              let e2 = addOrModify e1 (True, False) (a, valToTerm w, TInt) in
                 eval e2 b
             _ -> Nothing
         _ -> Nothing

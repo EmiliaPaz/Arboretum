@@ -58,8 +58,6 @@ update msg model =
         c = newContent
         t = Tokenizer.tokenize (map (String.words) (String.lines c))
         v = envToVars (Parser.generateEnv [] t)
-        -- v1 = map Parser.parse t
-        -- v = envToVars (Parser.avoidDuplicates (varsToEnv v1))
         rs = genRenderInfos 3 v
       in
       ({ model |

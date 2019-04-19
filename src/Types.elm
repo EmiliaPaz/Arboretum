@@ -18,9 +18,8 @@ type Term = CTerm Const | VTerm String | Plus Term Term | Minus Term Term | Time
 -- V(alue)Type is a type that a TreeAssembly term can evaluate to
 {-
   TAny may be used when the type can be either int or bool (discuss)
-  TNone is used as a default value for types we haven't determined yet (similar to EmptyTree)
 -}
-type VType = TBool | TInt | TFun VType VType | TAny | TNone
+type VType = TBool | TInt | TFun VType VType
 
 type alias Var =
   { name: String
@@ -28,47 +27,51 @@ type alias Var =
   , vtype: VType}
 
 {-
-  Returns the type signature of basic language constructs (if it's not relevant, return TNone)
+  Returns the type signature of basic language constructs (only used for binary operators)
 -}
-getTypeSignature : Term -> VType
+getTypeSignature : Term -> Maybe VType
 getTypeSignature t =
   case t of
-    CTerm (CBool b) -> TBool
-    CTerm (CInt i) -> TInt
-    Plus x y -> TFun (TFun TInt TInt) TInt
-    Minus x y -> TFun (TFun TInt TInt) TInt
-    Times x y -> TFun (TFun TInt TInt) TInt
-    Eq x y -> TFun (TFun TInt TInt) TBool
-    And x y -> TFun (TFun TBool TBool) TBool
-    Or x y -> TFun (TFun TBool TBool) TBool
+    CTerm (CBool b) -> Just TBool
+    CTerm (CInt i) -> Just TInt
+    Plus x y -> Just (TFun TInt (TFun TInt TInt))
+    Minus x y -> Just (TFun TInt (TFun TInt TInt))
+    Times x y -> Just (TFun TInt (TFun TInt TInt))
+    Eq x y -> Just (TFun TBool (TFun TInt TInt))
+    And x y -> Just (TFun TBool (TFun TBool TBool))
+    Or x y -> Just (TFun TBool (TFun TBool TBool))
     Lam x y -> getTypeSignature y --Possibly useful for nested functions
-    App x y -> TNone --Might have to change this later on
-    _ -> TNone
+    App x y -> Nothing --Might have to change this later on
+    _ -> Nothing
 
 {-
   Converts a list of VTypes to a nested VType in the form VFun VType VType
 -}
-listToTypeSign : List VType -> VType
+listToTypeSign : List VType -> Maybe VType
 listToTypeSign types =
   case types of
     t :: u :: ts ->
       case ts of
-        [] -> TFun t u
-        _ -> TFun (TFun t u) (listToTypeSign ts)
+        [] -> Just (TFun t u)
+        _ ->
+          case listToTypeSign ts of
+            Just vt -> Just (TFun (TFun t u) (vt))
+            Nothing -> Nothing
     t :: ts ->
       case ts of
-        [] -> t
-        _ -> TFun t (listToTypeSign ts)
-    [] -> TNone
+        [] -> Just t
+        _ ->
+          case listToTypeSign ts of
+            Just vt -> Just (TFun t (vt))
+            Nothing -> Nothing
+    [] -> Nothing
 
 {-
-  Converts a nested VType in the form VFun VType VType to a list of VTypes 
+  Converts a nested VType in the form VFun VType VType to a list of VTypes
 -}
 typeSignToList : VType -> List VType
 typeSignToList vt =
   case vt of
     TBool -> [TBool]
     TInt -> [TInt]
-    TAny -> [TAny]
-    TNone -> [TNone]
     TFun vt1 vt2 -> (typeSignToList vt1) ++ (typeSignToList vt2)

@@ -22,19 +22,21 @@ generateEnv e tokens =
   in case tkns of
       Just a ->
         let
-          item = parse a
+          (item, flag) = parse a
           (s, t, vt) = (item.name, item.term, item.vtype)
         in
-          generateEnv (addOrModify e (s, t, vt)) (drop 1 tokens)
+          generateEnv (addOrModify e flag (s, t, vt)) (drop 1 tokens)
       _ -> e
 
-parse : List Token -> Var
+parse : List Token -> (Var, (Bool, Bool))
 parse tokens = case take 2 tokens of
                     [TokVar v,TokAssign] -> let (tree, toks) = expression (drop 2 tokens)
-                                              in {name=v, term=tree, vtype = TNone}
+                                              in ({name=v, term=tree, vtype = TInt}, (True, False))
                     [TokVar v,TokHasType] -> let myType = listToTypeSign (prepareTypeList (drop 2 tokens))
-                                              in {name=v, term=EmptyTree, vtype=myType}
-                    _                    -> {name="",term=EmptyTree, vtype=TNone}
+                                              in case myType of
+                                                Just vt -> ({name=v, term=EmptyTree, vtype=vt}, (False, True))
+                                                Nothing -> ({name=v, term=EmptyTree, vtype=TInt}, (False, False))
+                    _                    -> ({name="",term=EmptyTree, vtype=TInt}, (False, False))
 
 
 tokTypeNameToVType : Token -> Maybe VType
@@ -42,7 +44,6 @@ tokTypeNameToVType t =
   case t of
     TokTypeName "Int" -> Just TInt
     TokTypeName "Bool" -> Just TBool
-    TokTypeName "Any" -> Just TAny
     _ -> Nothing
 
 prepareTypeList : List Token -> List VType

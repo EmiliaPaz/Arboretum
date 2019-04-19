@@ -61,7 +61,7 @@ replaceTerm : Env -> String -> Term -> Env
 replaceTerm e s t =
   case lookupType e s of
     Just vt -> extend (List.filter (doesNotMatch s) e) (s, t, vt)
-    Nothing -> extend e (s,t,TNone) --Can't replace
+    Nothing -> addOrModify e (True, False) (s,t,TInt) --Can't replace
 
 
 {-
@@ -72,25 +72,25 @@ replaceType : Env -> String -> VType -> Env
 replaceType e s vt =
   case lookup e s of
     Just t -> extend (List.filter (doesNotMatch s) e) (s, t, vt)
-    Nothing -> extend e (s,EmptyTree,vt) --Can't replace
+    Nothing -> addOrModify e (False, True) (s, EmptyTree, vt) --Can't replace
 
 {-
   If the variable is part of the environment and either the term of the type
   is unknown, replace the unknown term/variable with a specific term/variable.
   Otherwise, insert the variable into the environment.
 -}
-addOrModify : Env -> (String, Term, VType) -> Env
-addOrModify e (s, t, vt) =
+addOrModify : Env -> (Bool, Bool) -> (String, Term, VType) -> Env
+addOrModify e flag (s, t, vt) =
   case (lookup e s, lookupType e s) of
     (Just t1, Just vt1) ->
-      case (t1, vt1) of
-        (EmptyTree, TNone) -> extend (List.filter (doesNotMatch s) e) (s, t, vt)
-        (EmptyTree, vt2) -> extend (List.filter (doesNotMatch s) e) (s, t, vt2)
-        (t2, TNone) -> extend (List.filter (doesNotMatch s) e) (s, t2, vt)
-        (_, _) -> extend (List.filter (doesNotMatch s) e) (s,t,vt)
-    (Just _, Nothing) -> extend (List.filter (doesNotMatch s) e) (s,t,vt) --SHOULDNT HAPPEN
-    (Nothing, Just _) -> extend (List.filter (doesNotMatch s) e) (s,t,vt) --SHOULDNT HAPPEN
-    (Nothing, Nothing) -> extend e (s,t,vt) --Can't replace
+      case flag of
+        (True, True) -> extend (List.filter (doesNotMatch s) e) (s, t, vt) --Replace term and type
+        (True, False) -> extend (List.filter (doesNotMatch s) e) (s, t, vt1) --Replace term
+        (False, True) -> extend (List.filter (doesNotMatch s) e) (s, t1, vt) --Replace type
+        (False, False) -> e --Leave as is
+    (Just _, Nothing) -> extend (List.filter (doesNotMatch s) e) (s, t, vt) --Shouldn't happen
+    (Nothing, Just _) -> extend (List.filter (doesNotMatch s) e) (s, t, vt) --Shouldn't happen
+    (Nothing, Nothing) -> extend e (s, t, vt) --Insert into environment
 
 extend : Env -> (String, Term, VType) -> Env
 extend e v =

@@ -12,8 +12,6 @@ typeToString t =
     TBool -> "Bool"
     TInt  -> "Int"
     TFun a b -> (typeToString a) ++ " -> " ++ (typeToString b)
-    TAny -> "Any"
-    TNone -> "None"
 
 {-
 CheckResult represents the outcome of typechecking a term
@@ -127,7 +125,7 @@ getTypeArgs env t =
 insertArgs : Env -> Term -> Env
 insertArgs env t =
   case t of
-    Lam a b -> insertArgs (extend env (a, EmptyTree, TNone)) b
+    Lam a b -> insertArgs (extend env (a, EmptyTree, TInt)) b --Defaults to int
     _ -> env
 
 {-
@@ -138,7 +136,10 @@ typecheck env t =
   let
     -- curry environment into the typechecker right away
     check = typecheck env
-    sig = typeSignToList (getTypeSignature t)
+    sig =
+      case getTypeSignature t of
+        Just vt -> typeSignToList vt
+        Nothing -> []
     args = getTypeArgs env t
   in
     case t of
@@ -183,14 +184,20 @@ typecheckApp env t =
     App x y ->
       case x of
         Lam w z ->
-          let newEnv = addOrModify env (w, y, getTypeSignature y) in
-            typecheck newEnv z
+          case getTypeSignature y of
+            Just vt ->
+              let newEnv = addOrModify env (True, True) (w, y, vt) in
+                typecheck newEnv z
+            Nothing -> Invalid
         VTerm v ->
           let lambda = lookup env v
             in case lambda of
               Just (Lam w z) ->
-                let newEnv = addOrModify env (w, y, getTypeSignature y) in
-                  typecheck newEnv z
+                case getTypeSignature y of
+                  Just vt ->
+                    let newEnv = addOrModify env (True, True) (w, y, vt) in
+                      typecheck newEnv z
+                  Nothing -> Invalid
               _ -> Invalid
         _ -> Invalid
     _ -> Invalid --Shouldn't be reached
