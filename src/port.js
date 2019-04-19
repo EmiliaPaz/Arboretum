@@ -1,5 +1,10 @@
 "use strict"
 
+/*
+ * this file is the seam along which the language interpreter (written in Elm)
+ * and the parser (written in JavaScript/Chevrotain) communicate
+ */
+
 const toAst = require("./parser/visitor").toAst
 
 var app = Elm.Main.init({
@@ -15,6 +20,7 @@ app.ports.parseText.subscribe(function(text) {
     try {
         const ast = toAst(text)
         console.log(ast)
+        app.ports.gotAst.send(ast)
     }
     catch(error) {
         

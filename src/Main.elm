@@ -6,6 +6,7 @@ import Html.Events exposing (onClick, onInput)
 import Html.Attributes exposing (..)
 import List exposing (map,head,tail)
 import Debug exposing (toString)
+import Json.Decode as Decode
 
 import Tokenizer
 import Parser
@@ -44,20 +45,18 @@ init _ =
   , Cmd.none )
 
 
--- PORTS (not really sure where to put these)
-port parseText : String -> Cmd a
 
 
 -- UPDATE
 
 type Msg
-  = Change String | IncDepth Int | DecDepth Int
+  = Change String | IncDepth Int | DecDepth Int | GotAst Term
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
     Change newContent ->
-      let
+      {-let
         c = newContent
         t = Tokenizer.tokenize (map (String.words) (String.lines c))
         v = map Parser.parse t
@@ -68,7 +67,8 @@ update msg model =
         , tokens = t
         , vars = v
         , renderTreeInfos = rs
-       }, parseText newContent)
+       }, parseText newContent)-}
+      ({ model | content = newContent }, parseText newContent)
 
     IncDepth id ->
       let
@@ -81,6 +81,14 @@ update msg model =
         newRTs = filterUpdate (\x -> x.id == id) (\x -> {x | depth = x.depth - 1}) model.renderTreeInfos
       in
         ({model | renderTreeInfos = newRTs} , Cmd.none )
+    
+    GotAst t ->
+      let
+        vs = [{name="x", term=t}]
+        ris = genRenderInfos 3 vs
+      in
+        ({ model | vars = vs, renderTreeInfos = ris }
+        , Cmd.none)
 
 
 -- runs update function on items passing the filter function
@@ -111,10 +119,19 @@ genRenderInfos depth vars =
     vars
 
 
+-- PORTS
+port parseText : String -> Cmd a
+port gotAst : (Decode.Value -> msg) -> Sub msg
+
+
 -- SUBSCRIPTIONS
 subscriptions : Model -> Sub Msg
-subscriptions model =
-  Sub.none
+subscriptions _ =
+  gotAst (decodeAst >> GotAst)
+
+
+decodeAst : Decode.Value -> Term
+decodeAst _ = CTerm (CInt 42)
 
 
 -- VIEW
