@@ -160,10 +160,46 @@ exprSwitch s =
     "BOOL" -> boolDecoder
     "ID"   -> idDecoder
     "ADD_EXPR" -> addDecoder
+    "SUBT_EXPR" -> subtDecoder
+    "MULT_EXPR" -> multDecoder
+    "AND_EXPR" -> andDecoder
+    "OR_EXPR" -> orDecoder
     _      -> Decode.fail ("unrecognized type: " ++ s)
 
+binDecoder : (Term -> Term -> Term) -> Decoder Term
+binDecoder comb =
+  field "children" (Decode.list exprDecoder)
+    |> Decode.andThen
+      (\ts ->
+        case ts of
+          t1::t2::tr ->
+            Decode.succeed (binCombiner comb t1 ([t2] ++ tr))
+          _ ->
+            Decode.fail "binary expression has fewer than 2 children"
+      )
 
-addDecoder : Decoder Term
+{-
+This function needs at least one item in list to return a Term; the Elm
+community seems to like this approach of passing a 'first' input followed
+by the remaineder to ensure that at least one input is recieved.  I'm still
+not sure how I feel.
+-}
+binCombiner : (Term -> Term -> Term) -> Term -> List Term -> Term
+binCombiner comb first ts =
+  case ts of
+    [] ->
+      first
+    t::tr ->
+      comb first (binCombiner comb t tr)
+
+
+addDecoder = binDecoder (\t1 t2 -> Plus t1 t2)
+subtDecoder = binDecoder (\t1 t2 -> Minus t1 t2)
+multDecoder = binDecoder (\t1 t2 -> Times t1 t2)
+andDecoder = binDecoder (\t1 t2 -> And t1 t2)
+orDecoder = binDecoder (\t1 t2 -> Or t1 t2)
+
+{-addDecoder : Decoder Term
 addDecoder =
   field "children" (Decode.list exprDecoder)
     |> Decode.andThen
@@ -173,7 +209,8 @@ addDecoder =
             Decode.succeed (Plus t1 t2)
           _ ->
             Decode.fail "ADD_EXPR has fewer than 2 children"
-      )
+      )-}
+
 
 intDecoder : Decoder Term
 intDecoder =
