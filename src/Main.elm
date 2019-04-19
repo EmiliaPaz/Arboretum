@@ -353,7 +353,7 @@ genRenderTree depth e t =
         Eq x y    -> [gTree x, gTree y]
         And x y   -> [gTree x, gTree y]
         Or x y    -> [gTree x, gTree y]
-        --Lam x y   -> [gTree x, gTree y]
+        -- Lam x y   -> [gTree (VTerm (x)), gTree y]
         App x y   -> [gTree x, gTree y]
         _         -> []
 

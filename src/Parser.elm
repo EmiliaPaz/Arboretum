@@ -33,7 +33,7 @@ parse tokens = case take 2 tokens of
                     [TokVar v,TokAssign] -> let (tree, toks) = expression (drop 2 tokens)
                                                 -- typeSign = getTypeSignature tree
                                               in {name=v, term=tree, vtype = TNone}
-                    [TokVar v,TokHasType] -> let myType = parseTypeAnnotation (prepareTypeList (drop 2 tokens))
+                    [TokVar v,TokHasType] -> let myType = listToTypeSign (prepareTypeList (drop 2 tokens))
                                               in {name=v, term=EmptyTree, vtype=myType}
                     _                    -> {name="",term=EmptyTree, vtype=TNone}
 
@@ -55,18 +55,7 @@ prepareTypeList tokens =
         _ -> prepareTypeList (drop 1 tokens)
     _ -> []
 
-parseTypeAnnotation : List VType -> VType
-parseTypeAnnotation tokens =
-  case tokens of
-    t :: u :: ts ->
-      case ts of
-        [] -> TFun t u
-        _ -> TFun (TFun t u) (parseTypeAnnotation ts)
-    t :: ts ->
-      case ts of
-        [] -> t
-        _ -> TFun t (parseTypeAnnotation ts)
-    [] -> TNone
+
 
 twoSidedConnective : Term -> List Token -> TokTSC -> (Term, Term, List Token)
 twoSidedConnective left tokens typeSign = case (left, tokens, typeSign) of

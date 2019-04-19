@@ -42,3 +42,16 @@ getTypeSignature t =
     Lam x y -> TNone --Temporarily
     App x y -> TNone --Temporarily
     _ -> TNone
+
+listToTypeSign : List VType -> VType
+listToTypeSign types =
+  case types of
+    t :: u :: ts ->
+      case ts of
+        [] -> TFun t u
+        _ -> TFun (TFun t u) (listToTypeSign ts)
+    t :: ts ->
+      case ts of
+        [] -> t
+        _ -> TFun t (listToTypeSign ts)
+    [] -> TNone
