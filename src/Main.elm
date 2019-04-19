@@ -7,6 +7,7 @@ import Html.Attributes exposing (..)
 import List exposing (map,head,tail)
 import Debug exposing (toString)
 import Json.Decode as Decode exposing (Decoder, field, bool, int, string)
+import String exposing (split)
 
 import Tokenizer
 import Parser
@@ -70,7 +71,7 @@ update msg model =
         , vars = v
         , renderTreeInfos = rs
        }, parseText newContent)-}
-      ({ model | content = newContent }, parseText newContent)
+      ({ model | content = newContent }, parseLines [newContent])
 
     IncDepth id ->
       let
@@ -127,7 +128,7 @@ genRenderInfos depth vars =
 
 
 -- PORTS
-port parseText : String -> Cmd a
+port parseLines : List String -> Cmd a
 port gotAst : (Decode.Value -> msg) -> Sub msg
 
 
@@ -164,6 +165,7 @@ exprSwitch s =
     "MULT_EXPR" -> multDecoder
     "AND_EXPR" -> andDecoder
     "OR_EXPR" -> orDecoder
+    "EQ_EXPR" -> eqDecoder
     _      -> Decode.fail ("unrecognized type: " ++ s)
 
 binDecoder : (Term -> Term -> Term) -> Decoder Term
@@ -192,25 +194,19 @@ binCombiner comb first ts =
     t::tr ->
       comb first (binCombiner comb t tr)
 
-
 addDecoder = binDecoder (\t1 t2 -> Plus t1 t2)
 subtDecoder = binDecoder (\t1 t2 -> Minus t1 t2)
 multDecoder = binDecoder (\t1 t2 -> Times t1 t2)
 andDecoder = binDecoder (\t1 t2 -> And t1 t2)
 orDecoder = binDecoder (\t1 t2 -> Or t1 t2)
 
-{-addDecoder : Decoder Term
-addDecoder =
-  field "children" (Decode.list exprDecoder)
+eqDecoder : Decoder Term
+eqDecoder =
+  Decode.map2 (\l r -> (l, r))
+    (field "lhs" exprDecoder)
+    (field "rhs" exprDecoder)
     |> Decode.andThen
-      (\ts ->
-        case ts of
-          t1::t2::tr ->
-            Decode.succeed (Plus t1 t2)
-          _ ->
-            Decode.fail "ADD_EXPR has fewer than 2 children"
-      )-}
-
+      (\(l, r) -> Decode.succeed (Eq l r))
 
 intDecoder : Decoder Term
 intDecoder =
