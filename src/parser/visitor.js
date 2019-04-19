@@ -11,6 +11,18 @@ const parserInstance = new SelectParser([])
 // The base visitor class can be accessed via the a parser instance.
 const BaseScriptVisitor = parserInstance.getBaseCstVisitorConstructor()
 
+function parseBool(string) {
+    if(string === 'True') {
+        return true
+    }
+    else if(string === 'False') {
+        return false
+    }
+    else {
+        throw "Parsing boolean from string failed!"
+    }
+}
+
 
 class ToAstVisitor extends BaseScriptVisitor {
     constructor() {
@@ -130,13 +142,13 @@ class ToAstVisitor extends BaseScriptVisitor {
         else if(ctx.Integer) {
             return {
                 type: "INT",
-                value: ctx.Integer[0].image,
+                value: parseInt(ctx.Integer[0].image),
             }
         }
         else if(ctx.Boolean) {
             return {
                 type: "BOOL",
-                value: ctx.Boolean[0].image,
+                value: parseBool(ctx.Boolean[0].image),
             }
         }
         else if(ctx.Identifier) {

@@ -1,7 +1,7 @@
 port module Main exposing (..)
 
 import Browser exposing (Document)
-import Html exposing (Html, button, div, text, h1, h3, input, span, textarea, br)
+import Html exposing (Html, button, div, text, h1, h3, input, span, textarea, br, p)
 import Html.Events exposing (onClick, onInput)
 import Html.Attributes exposing (..)
 import List exposing (map,head,tail)
@@ -32,6 +32,7 @@ type alias Model =
   , tokens  : List (List Token)
   , vars       : List Var
   , renderTreeInfos : List RenderTreeInfo
+  , errorMsg : String
   }
 
 
@@ -41,6 +42,7 @@ init _ =
     , tokens = [[]]
     , vars = []
     , renderTreeInfos = []
+    , errorMsg = ""
     }
   , Cmd.none )
 
@@ -50,7 +52,7 @@ init _ =
 -- UPDATE
 
 type Msg
-  = Change String | IncDepth Int | DecDepth Int | GotAst Term
+  = Change String | IncDepth Int | DecDepth Int | GotAst (Result String Term)
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -82,13 +84,18 @@ update msg model =
       in
         ({model | renderTreeInfos = newRTs} , Cmd.none )
     
-    GotAst t ->
-      let
-        vs = [{name="x", term=t}]
-        ris = genRenderInfos 3 vs
-      in
-        ({ model | vars = vs, renderTreeInfos = ris }
-        , Cmd.none)
+    GotAst r ->
+      case r of
+        Ok t ->
+          let
+            vs = [{name="x", term=t}]
+            ris = genRenderInfos 3 vs
+          in
+            ({ model | vars = vs, renderTreeInfos = ris }
+            , Cmd.none)
+
+        Err e ->
+          ({ model | errorMsg = e }, Cmd.none)
 
 
 -- runs update function on items passing the filter function
@@ -130,13 +137,16 @@ subscriptions _ =
   gotAst (decodeAst >> GotAst)
 
 
-decodeAst : Decode.Value -> Term
-decodeAst _ = CTerm (CInt 42)
+decodeAst : Decode.Value -> Result String Term
+decodeAst v =
+  case Decode.decodeValue assignDecoder v of
+    Ok t -> Ok t
+    Err e -> Err (Decode.errorToString e)
 
 
 assignDecoder : Decoder Term
 assignDecoder = 
-  field "expresssion" exprDecoder
+  field "expression" exprDecoder
 
 exprDecoder : Decoder Term
 exprDecoder =
@@ -148,9 +158,22 @@ exprSwitch s =
   case s of
     "INT"  -> intDecoder
     "BOOL" -> boolDecoder
-    --"ADD_EXPR" -> addDecoder
+    "ID"   -> idDecoder
+    "ADD_EXPR" -> addDecoder
     _      -> Decode.fail ("unrecognized type: " ++ s)
 
+
+addDecoder : Decoder Term
+addDecoder =
+  field "children" (Decode.list exprDecoder)
+    |> Decode.andThen
+      (\ts ->
+        case ts of
+          t1::t2::tr ->
+            Decode.succeed (Plus t1 t2)
+          _ ->
+            Decode.fail "ADD_EXPR has fewer than 2 children"
+      )
 
 intDecoder : Decoder Term
 intDecoder =
@@ -164,6 +187,12 @@ boolDecoder =
     |> Decode.andThen
       (\b -> Decode.succeed (CTerm (CBool b)))
 
+idDecoder : Decoder Term
+idDecoder =
+  field "value" string
+    |> Decode.andThen
+      (\i -> Decode.succeed (VTerm i))
+
 -- VIEW
 
 view : Model -> Document Msg
@@ -172,6 +201,7 @@ view model =
   , body =
     [
       Html.node "link" [ Html.Attributes.rel "stylesheet", Html.Attributes.href "style.css" ] []
+      , p [] [text model.errorMsg]
       , div [class "tokenizer-parser-title-container"]
         [
           div [class "textarea-container"]
