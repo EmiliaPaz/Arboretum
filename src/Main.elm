@@ -30,7 +30,6 @@ main =
 
 type alias Model =
   { content : String
-  , tokens  : List (List Token)
   , vars       : List Var
   , renderTreeInfos : List RenderTreeInfo
   , errorMsg : String
@@ -40,7 +39,6 @@ type alias Model =
 init : () -> (Model, Cmd Msg)
 init _ =
   ( { content = ""
-    , tokens = [[]]
     , vars = []
     , renderTreeInfos = []
     , errorMsg = ""
@@ -236,9 +234,7 @@ view model =
           ]
           , div [class "tokenizer-parser-container"]
           [
-            h3 [ class "css-title" ] [text "Tokens:"]
-            , div [class "expression-builder"] (printTknsLBL model.tokens)
-            , h3 [ class "css-title" ] [text "Parse Tree:"]
+            h3 [ class "css-title" ] [text "Parse Tree:"]
             , div [class "expression-builder"] (printPT model.vars)
           ]
         ]
