@@ -19,10 +19,9 @@ will get invoked/called when we send a cmd message out via Elm.
 app.ports.parseLines.subscribe(function(lines) {
     try {
         const asts = lines.map(l => toAst(l))
-        console.log(asts)
         app.ports.gotAst.send(asts)
     }
     catch(error) {
-        console.log(error)
+
     }
 });
