@@ -52,12 +52,12 @@ class ToAstVisitor extends BaseScriptVisitor {
 
     ifExpression(ctx) {
         if(ctx.eqExpression.length > 1) {
-            const branch = this.visit(ctx.eqExpression[0])
+            const condition = this.visit(ctx.eqExpression[0])
             const first = this.visit(ctx.eqExpression[1])
             const second = this.visit(ctx.eqExpression[2])
             return {
                 type: "IF_EXPR",
-                branch: branch,
+                condition: condition,
                 first: first,
                 second: second,
             }

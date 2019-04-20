@@ -156,7 +156,15 @@ exprSwitch s =
     "AND_EXPR" -> andDecoder
     "OR_EXPR" -> orDecoder
     "EQ_EXPR" -> eqDecoder
+    "IF_EXPR" -> ifDecoder
     _      -> Decode.fail ("unrecognized type: " ++ s)
+
+ifDecoder : Decoder Term
+ifDecoder =
+  Decode.map3 (\c f s -> If c f s)
+    (field "condition" exprDecoder)
+    (field "first" exprDecoder)
+    (field "second" exprDecoder)
 
 binDecoder : (Term -> Term -> Term) -> Decoder Term
 binDecoder comb =
