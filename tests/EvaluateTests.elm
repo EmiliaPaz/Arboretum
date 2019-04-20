@@ -47,6 +47,24 @@ suite =
             Plus (CTerm (CInt 5)) (CTerm (CInt 3))
               |> eval env
               |> Expect.equal (Just (VInt 8))
+      
+      , test "or" <|
+        \_ ->
+          let
+            env = []
+          in
+            Or (CTerm (CBool True)) (CTerm (CBool False))
+              |> eval env
+              |> Expect.equal (Just (VBool True))
+
+      , test "and" <|
+        \_ ->
+          let
+            env = []
+          in
+            And (CTerm (CBool True)) (CTerm (CBool False))
+              |> eval env
+              |> Expect.equal (Just (VBool False))
 
       {-, test "variable substitution" <|
         \_ ->
