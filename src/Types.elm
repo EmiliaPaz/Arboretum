@@ -40,7 +40,7 @@ getTypeSignature t =
     Eq x y -> Just (TFun TInt (TFun TInt TBool))
     And x y -> Just (TFun TBool (TFun TBool TBool))
     Or x y -> Just (TFun TBool (TFun TBool TBool))
-    Lam x y -> getTypeSignature y --Possibly useful for nested functions
+    Lam x y -> Nothing --Need to work on this.
     App x y -> Nothing --Might have to change this later on
     _ -> Nothing
 
