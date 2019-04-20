@@ -65,6 +65,33 @@ suite =
             And (CTerm (CBool True)) (CTerm (CBool False))
               |> eval env
               |> Expect.equal (Just (VBool False))
+      
+      , test "if with true evaluates first branch" <|
+        \_ ->
+          let
+            env = []
+          in
+            If (CTerm (CBool True)) (CTerm (CInt 42)) (CTerm (CInt 62))
+              |> eval env
+              |> Expect.equal (Just (VInt 42))
+
+      , test "if with false evaluates second branch" <|
+        \_ ->
+          let
+            env = []
+          in
+            If (CTerm (CBool False)) (CTerm (CInt 42)) (CTerm (CInt 62))
+              |> eval env
+              |> Expect.equal (Just (VInt 62))
+
+      , test "if with an integer doesn't evaluate" <|
+        \_ ->
+          let
+            env = []
+          in
+            If (CTerm (CInt 3)) (CTerm (CInt 42)) (CTerm (CInt 62))
+              |> eval env
+              |> Expect.equal Nothing
 
       {-, test "variable substitution" <|
         \_ ->

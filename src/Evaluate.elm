@@ -52,6 +52,9 @@ termToString t =
 
     Or t1 t2 ->
       "(" ++ (termToString t1) ++ " || " ++ (termToString t2) ++ ")"
+    
+    If t1 t2 t3 ->
+      "if " ++ (termToString t1) ++ " then " ++ (termToString t2) ++ " else " ++ (termToString t3)
 
     Lam t1 t2 ->
       "(\\ " ++ (termToString t1) ++ " -> " ++ (termToString t2) ++ ")"
@@ -144,6 +147,16 @@ eval e t =
 
     Or x y ->
       wrapBool ( tryBinFn (||) (tryBool (evale x)) (tryBool (evale y)) )
+    
+    If b x y ->
+      case evale b of
+        Just (VBool True) ->
+          evale x
+
+        Just (VBool False) ->
+          evale y
+
+        _ -> Nothing
 
     Lam x y ->
       evale y
