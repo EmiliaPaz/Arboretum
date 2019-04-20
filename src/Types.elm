@@ -37,7 +37,7 @@ getTypeSignature t =
     Plus x y -> Just (TFun TInt (TFun TInt TInt))
     Minus x y -> Just (TFun TInt (TFun TInt TInt))
     Times x y -> Just (TFun TInt (TFun TInt TInt))
-    Eq x y -> Just (TFun TBool (TFun TInt TInt))
+    Eq x y -> Just (TFun TInt (TFun TInt TBool))
     And x y -> Just (TFun TBool (TFun TBool TBool))
     Or x y -> Just (TFun TBool (TFun TBool TBool))
     Lam x y -> getTypeSignature y --Possibly useful for nested functions
