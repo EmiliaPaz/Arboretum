@@ -1,6 +1,7 @@
 module Parser exposing (..)
 
 import List exposing (head,tail,take,drop,foldr)
+import Environment exposing (lookup, Env, replaceType, replaceTerm, addOrModify)
 import Types exposing (..)
 import Debug exposing (toString)
 
@@ -55,6 +56,7 @@ prepareTypeList tokens =
     _ -> []
 
 
+
 twoSidedConnective : Term -> List Token -> TokTSC -> (Term, Term, List Token)
 twoSidedConnective left tokens typeSign = case (left, tokens, typeSign) of
                               -- tsc int
@@ -88,8 +90,13 @@ expression tokens = let (l, tokens2) = expr tokens
                                                 TTSCBool TokOr  -> (Or left right, tokens3)
                                                 TTSCBool TokAnd  -> (And left right, tokens3)
                                                 TTSCBool TokEq  -> (Eq left right, tokens3)
-                        Just TokArrow -> let (body, tokens4) = expression (fromMaybeList(tail tokens2))
-                                      in (Lam l body, tokens4)
+                        Just TokArrow ->
+                                      case l of
+                                        VTerm v -> let
+                                                    (body, tokens4) = expression (fromMaybeList(tail tokens2))
+                                                   in (Lam v body, tokens4)
+                                        _ -> (EmptyTree, []) --Shouldn't hit this case
+
                         _ ->
                           case l of
                             Lam _ _ ->

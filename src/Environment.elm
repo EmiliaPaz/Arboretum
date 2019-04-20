@@ -1,10 +1,13 @@
-module Environment exposing (Env, lookup, extend, varsToEnv)
+
+module Environment exposing (Env, lookup, lookupType, lookupName, extend, varsToEnv, replaceType, replaceTerm, envToVars, addOrModify)
 
 import List exposing (map)
-import Types exposing (Term(..), Var)
+import Types exposing (Term(..), Var, VType(..))
+type alias Env = List (String, Term, VType)
 
-type alias Env = List (String, Term)
-
+{-
+  Note: It might be useful combine lookup and lookupType into a single function.
+-}
 
 lookup : Env -> String -> Maybe Term
 lookup e s =
@@ -12,11 +15,16 @@ lookup e s =
     [] ->
       Nothing
 
-    (id, t) :: vs ->
+    (id, t, vt) :: vs ->
       if id == s then
         Just t
       else lookup vs s
 
+lookupType : Env -> String -> Maybe VType
+lookupType e s =
+  case e of
+    [] ->
+      Nothing
 
     (id, t, vt) :: vs ->
       if id == s then
@@ -93,4 +101,15 @@ extend e v =
 -- we may eventually want to move away from var, but this stopgap works for now
 varsToEnv : List Var -> Env
 varsToEnv vs =
-  map (\v -> (v.name, v.term)) vs
+  map (\v -> (v.name, v.term, v.vtype)) vs
+
+{-
+  The reverse of varsToEnv.
+-}
+envToVars : Env -> List Var
+envToVars env =
+  case env of
+    t :: ts ->
+      case t of
+        (a, b, c) -> [{name=a,term=b,vtype=c}] ++ envToVars ts
+    _ -> []
