@@ -16,12 +16,13 @@ var app = Elm.Main.init({
 Methods we declared as 'port' in Elm will be available on app.ports that
 will get invoked/called when we send a cmd message out via Elm.
 */
-app.ports.parseText.subscribe(function(text) {
+app.ports.parseLines.subscribe(function(lines) {
     try {
-        const ast = toAst(text)
-        app.ports.gotAst.send(ast)
+        const asts = lines.map(l => toAst(l))
+        console.log(asts)
+        app.ports.gotAst.send(asts)
     }
     catch(error) {
-
+        console.log(error)
     }
 });

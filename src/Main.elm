@@ -53,25 +53,16 @@ init _ =
 -- UPDATE
 
 type Msg
-  = Change String | IncDepth Int | DecDepth Int | GotAst (Result String Term)
+  = Change String | IncDepth Int | DecDepth Int | GotAsts (Result String (List (String, Term)))
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
     Change newContent ->
-      {-let
-        c = newContent
-        t = Tokenizer.tokenize (map (String.words) (String.lines c))
-        v = map Parser.parse t
-        rs = genRenderInfos 3 v
+      let
+        lines = split "\n" newContent
       in
-      ({ model |
-          content = c
-        , tokens = t
-        , vars = v
-        , renderTreeInfos = rs
-       }, parseText newContent)-}
-      ({ model | content = newContent }, parseLines [newContent])
+        ({ model | content = newContent }, parseLines lines)
 
     IncDepth id ->
       let
@@ -85,11 +76,11 @@ update msg model =
       in
         ({model | renderTreeInfos = newRTs} , Cmd.none )
     
-    GotAst r ->
+    GotAsts r ->
       case r of
-        Ok t ->
+        Ok ts ->
           let
-            vs = [{name="x", term=t}]
+            vs = map (\(n,t) -> {name=n, term=t}) ts
             ris = genRenderInfos 3 vs
           in
             ({ model | vars = vs, renderTreeInfos = ris }
@@ -135,19 +126,20 @@ port gotAst : (Decode.Value -> msg) -> Sub msg
 -- SUBSCRIPTIONS
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-  gotAst (decodeAst >> GotAst)
+  gotAst (decodeAsts >> GotAsts)
 
 
-decodeAst : Decode.Value -> Result String Term
-decodeAst v =
-  case Decode.decodeValue assignDecoder v of
+decodeAsts : Decode.Value -> Result String (List (String, Term))
+decodeAsts v =
+  case Decode.decodeValue (Decode.list assignDecoder) v of
     Ok t -> Ok t
     Err e -> Err (Decode.errorToString e)
 
-
-assignDecoder : Decoder Term
+assignDecoder : Decoder (String, Term)
 assignDecoder = 
-  field "expression" exprDecoder
+  Decode.map2 (\id t -> (id, t))
+    (field "identifier" string)
+    (field "expression" exprDecoder)
 
 exprDecoder : Decoder Term
 exprDecoder =
