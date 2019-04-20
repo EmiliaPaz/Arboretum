@@ -19,6 +19,10 @@ const Boolean = createToken({
     longer_alt: Identifier
     })
 
+const If = createToken({name: "If", pattern: /if/, longer_alt: Identifier})
+const Then = createToken({name: "Then", pattern: /then/, longer_alt: Identifier})
+const Else = createToken({name: "Else", pattern: /else/, longer_alt: Identifier})
+
 const Equivalence = createToken({name: "Equivalence", pattern: /==/ })
 const Assignment = createToken({ name: "Assignment", pattern: /=/ })
 
@@ -41,6 +45,9 @@ const WhiteSpace = createToken({
 const allTokens = [
     WhiteSpace,
     Boolean,
+    If,
+    Then,
+    Else,
     Identifier,
     Integer,
     Equivalence,

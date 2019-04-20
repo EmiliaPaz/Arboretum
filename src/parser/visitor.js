@@ -44,9 +44,27 @@ class ToAstVisitor extends BaseScriptVisitor {
 
     // expression rule is some sort of wrapper right now
     expression(ctx) {
-        const expr = this.visit(ctx.eqExpression)
+        const expr = this.visit(ctx.ifExpression)
 
         return expr
+    }
+
+
+    ifExpression(ctx) {
+        if(ctx.eqExpression.length > 1) {
+            const branch = this.visit(ctx.eqExpression[0])
+            const first = this.visit(ctx.eqExpression[1])
+            const second = this.visit(ctx.eqExpression[2])
+            return {
+                type: "IF_EXPR",
+                branch: branch,
+                first: first,
+                second: second,
+            }
+        }
+        else {
+            return this.visit(ctx.eqExpression)
+        }
     }
 
     /*

@@ -11,6 +11,9 @@ const tokenVocabulary = scriptLexer.tokenVocabulary
 const Identifier = tokenVocabulary.Identifier
 const Integer = tokenVocabulary.Integer
 const Boolean = tokenVocabulary.Boolean
+const If = tokenVocabulary.If
+const Then = tokenVocabulary.Then
+const Else = tokenVocabulary.Else
 const Equivalence = tokenVocabulary.Equivalence
 const Assignment = tokenVocabulary.Assignment
 const Addition = tokenVocabulary.Addition
@@ -38,7 +41,21 @@ class ScriptParser extends Parser {
         })
 
         $.RULE("expression", () => {
-            $.SUBRULE($.eqExpression)
+            $.SUBRULE($.ifExpression)
+        })
+
+        $.RULE("ifExpression", () => {
+            $.OR([
+                { ALT: () => $.SUBRULE($.eqExpression) },
+                { ALT: () => {
+                    $.CONSUME(If)
+                    $.SUBRULE2($.eqExpression)
+                    $.CONSUME(Then)
+                    $.SUBRULE3($.eqExpression)
+                    $.CONSUME(Else)
+                    $.SUBRULE4($.eqExpression)
+                }},
+            ])
         })
 
         $.RULE("eqExpression", () => {
