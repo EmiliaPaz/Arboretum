@@ -4,7 +4,7 @@ import Browser exposing (Document)
 import Html exposing (Html, button, div, text, h1, h3, input, span, textarea, br, p)
 import Html.Events exposing (onClick, onInput)
 import Html.Attributes exposing (..)
-import List exposing (map,head,tail)
+import List exposing (map,head,tail,reverse)
 import Debug exposing (toString)
 import Json.Decode as Decode exposing (Decoder, field, bool, int, string)
 import String exposing (split)
@@ -163,7 +163,7 @@ binDecoder comb =
   field "children" (Decode.list exprDecoder)
     |> Decode.andThen
       (\ts ->
-        case ts of
+        case reverse ts of
           t1::t2::tr ->
             Decode.succeed (binCombiner comb t1 ([t2] ++ tr))
           _ ->
@@ -174,7 +174,7 @@ binDecoder comb =
 This function needs at least one item in list to return a Term; the Elm
 community seems to like this approach of passing a 'first' input followed
 by the remaineder to ensure that at least one input is recieved.  I'm still
-not sure how I feel.
+not sure how I feel about this.
 -}
 binCombiner : (Term -> Term -> Term) -> Term -> List Term -> Term
 binCombiner comb first ts =
@@ -182,7 +182,7 @@ binCombiner comb first ts =
     [] ->
       first
     t::tr ->
-      comb first (binCombiner comb t tr)
+      comb (binCombiner comb t tr) first
 
 addDecoder = binDecoder (\t1 t2 -> Plus t1 t2)
 subtDecoder = binDecoder (\t1 t2 -> Minus t1 t2)
