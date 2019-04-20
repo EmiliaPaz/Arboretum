@@ -7,7 +7,7 @@ import Debug exposing (toString)
 
 import Tokenizer
 import Parser
-import Environment exposing (Env, lookup, varsToEnv, envToVars)
+import Environment exposing (Env, lookup)
 import Evaluate
 import Types exposing (..)
 import Typecheck exposing (CheckResult(..), typecheck, checkResultToString, typeToString)
@@ -48,8 +48,6 @@ init _ =
 type Msg
   = Change String | IncDepth Int | DecDepth Int
 
-
-
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
@@ -57,9 +55,7 @@ update msg model =
       let
         c = newContent
         t = Tokenizer.tokenize (map (String.words) (String.lines c))
-        v = envToVars (Parser.generateEnv [] t)
-        -- v1 = map Parser.parse t
-        -- v = envToVars (Parser.avoidDuplicates (varsToEnv v1))
+        v = map Parser.parse t
         rs = genRenderInfos 3 v
       in
       ({ model |
@@ -99,7 +95,7 @@ filterUpdate cond upd xs =
 Generates a list of render infos.  This function exists mostly so that render
 infos can recieve ids.
 -}
-genRenderInfos : Int -> List Var -> List RenderTreeInfo -- Changed List Var to Env
+genRenderInfos : Int -> List Var -> List RenderTreeInfo
 genRenderInfos depth vars =
   List.indexedMap
     ( \i var ->
@@ -194,8 +190,6 @@ renderTerm e t =
     , span [ class spanClass ] [ text (checkResultToString checkResult) ]
     ]
 
--- stringToTerm : String -> Maybe Term
--- stringToTerm s =
 
 listSubterms : Term -> List Term
 listSubterms t =
@@ -208,7 +202,7 @@ listSubterms t =
     Eq x y ->    [x, y]
     And x y ->   [x, y]
     Or x y ->    [x, y]
-    Lam x y ->   [VTerm ("\\" ++ x), y]
+    Lam x y ->   [x, y]
     App x y ->   [x, y]
     _ ->         []
 
@@ -353,7 +347,7 @@ genRenderTree depth e t =
         Eq x y    -> [gTree x, gTree y]
         And x y   -> [gTree x, gTree y]
         Or x y    -> [gTree x, gTree y]
-        -- Lam x y   -> [gTree (VTerm (x)), gTree y]
+        --Lam x y   -> [gTree x, gTree y]
         App x y   -> [gTree x, gTree y]
         _         -> []
 

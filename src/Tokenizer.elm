@@ -24,6 +24,9 @@ operator str =
             else if str == "*" then
                 TTSC (TTSCInt TokTimes)
 
+            else if str == "=" then
+                TokAssign
+
             else if str == "==" then
                 TTSC (TTSCBool TokEq)
 
@@ -33,12 +36,6 @@ operator str =
             else if str == "||" then
                 TTSC (TTSCBool TokOr)
 
-            else if str == "=" then
-                TokAssign
-
-            else if str == "::" then
-                TokHasType
-
             else if str == "?" then
                 TokHole
 
@@ -47,7 +44,7 @@ operator str =
 
 
 operators =
-    [ "+", "-", "*", "=", "==", "&&", "||", "?", "::" ]
+    [ "+", "-", "*", "=", "==", "&&", "||", "?" ]
 
 
 isBoolean : String -> Bool
@@ -61,17 +58,6 @@ isBoolean x =
 
         other ->
             False
-
-isTypeName : String -> Bool
-isTypeName x =
-  case x of
-    "Int" ->
-      True
-    "Bool" ->
-      True
-    "Fun" ->
-      True
-    _ -> False
 
 
 stringToBoolean : String -> Bool
@@ -101,6 +87,7 @@ fromMaybeInt x =
     case x of
         Nothing ->
             0
+
         -- should never get called
         Just y ->
             y
@@ -123,9 +110,6 @@ tokenizeLine str =
 
             else if isBoolean x then
                 TokConstBool (stringToBoolean x) :: tokenizeLine xs
-
-            else if isTypeName x then
-                TokTypeName x :: tokenizeLine xs
 
             else if String.filter Char.isDigit x == x && x /= "" then
                 TokConstInt (stringToInt x) :: tokenizeLine xs

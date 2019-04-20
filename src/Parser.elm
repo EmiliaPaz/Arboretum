@@ -1,7 +1,6 @@
 module Parser exposing (..)
 
 import List exposing (head,tail,take,drop,foldr)
-import Environment exposing (lookup, Env, replaceType, replaceTerm, addOrModify)
 import Types exposing (..)
 import Debug exposing (toString)
 
@@ -16,45 +15,12 @@ fromMaybeList ls = case ls of
                   Nothing -> []
                   Just list -> list
 
-generateEnv : Env -> List (List Token) -> Env
-generateEnv e tokens =
-  let tkns = head (tokens)
-  in case tkns of
-      Just a ->
-        let
-          item = parse a
-          (s, t, vt) = (item.name, item.term, item.vtype)
-        in
-          generateEnv (addOrModify e (s, t, vt)) (drop 1 tokens)
-      _ -> e
 
 parse : List Token -> Var
 parse tokens = case take 2 tokens of
                     [TokVar v,TokAssign] -> let (tree, toks) = expression (drop 2 tokens)
-                                              in {name=v, term=tree, vtype = TNone}
-                    [TokVar v,TokHasType] -> let myType = listToTypeSign (prepareTypeList (drop 2 tokens))
-                                              in {name=v, term=EmptyTree, vtype=myType}
-                    _                    -> {name="",term=EmptyTree, vtype=TNone}
-
-
-tokTypeNameToVType : Token -> Maybe VType
-tokTypeNameToVType t =
-  case t of
-    TokTypeName "Int" -> Just TInt
-    TokTypeName "Bool" -> Just TBool
-    TokTypeName "Any" -> Just TAny
-    _ -> Nothing
-
-prepareTypeList : List Token -> List VType
-prepareTypeList tokens =
-  case (head tokens) of
-    Just tok ->
-      case tokTypeNameToVType tok of
-        Just t -> [t] ++ prepareTypeList (drop 1 tokens)
-        _ -> prepareTypeList (drop 1 tokens)
-    _ -> []
-
-
+                                                    in {name=v, term=tree}
+                    _                    -> {name="",term=EmptyTree}
 
 twoSidedConnective : Term -> List Token -> TokTSC -> (Term, Term, List Token)
 twoSidedConnective left tokens typeSign = case (left, tokens, typeSign) of
@@ -89,13 +55,8 @@ expression tokens = let (l, tokens2) = expr tokens
                                                 TTSCBool TokOr  -> (Or left right, tokens3)
                                                 TTSCBool TokAnd  -> (And left right, tokens3)
                                                 TTSCBool TokEq  -> (Eq left right, tokens3)
-                        Just TokArrow ->
-                                      case l of
-                                        VTerm v -> let
-                                                    (body, tokens4) = expression (fromMaybeList(tail tokens2))
-                                                   in (Lam v body, tokens4)
-                                        _ -> (EmptyTree, []) --Shouldn't hit this case
-
+                        Just TokArrow -> let (body, tokens4) = expression (fromMaybeList(tail tokens2))
+                                      in (Lam l body, tokens4)
                         _ ->
                           case l of
                             Lam _ _ ->
