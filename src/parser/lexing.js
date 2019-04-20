@@ -19,6 +19,10 @@ const Boolean = createToken({
     longer_alt: Identifier
     })
 
+const Lambda = createToken({name: "Lambda", pattern: /\\/ })
+const Arrow = createToken({name: "Arrow", pattern: /->/ })
+const Type = createToken({name: "Type", pattern: /->/ })
+
 const Equivalence = createToken({name: "Equivalence", pattern: /==/ })
 const Assignment = createToken({ name: "Assignment", pattern: /=/ })
 
@@ -41,6 +45,9 @@ const WhiteSpace = createToken({
 const allTokens = [
     WhiteSpace,
     Boolean,
+    Lambda,
+    Arrow,
+    Type,
     Identifier,
     Integer,
     Equivalence,

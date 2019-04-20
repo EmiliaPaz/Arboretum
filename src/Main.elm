@@ -80,7 +80,7 @@ update msg model =
       case r of
         Ok ts ->
           let
-            vs = map (\(n,t) -> {name=n, term=t, vtype=typecheck t}) ts
+            vs = map (\(n,t) -> {name=n, term=t, vtype=TInt}) ts
             ris = genRenderInfos 3 vs
           in
             ({ model | vars = vs, renderTreeInfos = ris }
