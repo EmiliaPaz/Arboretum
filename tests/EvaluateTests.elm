@@ -51,10 +51,28 @@ suite =
       , test "variable substitution" <|
         \_ ->
           let
-            env = [("x", CTerm (CInt 9))]
+            env = [("x", CTerm (CInt 9), TInt)]
           in
             VTerm "x"
               |> eval env
               |> Expect.equal (Just (VInt 9))
+              
+       , test "lambdas evaluate to closures" <|
+        \_ ->
+          let
+            env = []
+          in
+            Lam "x" (Plus (VTerm "x") (CTerm (CInt 2)))
+              |> eval env
+              |> Expect.equal (Just (VFun env "x" (Plus (VTerm "x") (CTerm (CInt 2)))))
+              
+        , test "applications evaluate with environment" <|
+        \_ ->
+          let
+            env = []
+          in
+            App (Lam "x" (Plus (VTerm "x") (CTerm (CInt 3)))) (CTerm (CInt 5))
+              |> eval env
+              |> Expect.equal (Just (VInt 8))
       ]
     ]
