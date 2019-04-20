@@ -11,7 +11,7 @@ import String exposing (split)
 
 import Tokenizer
 import Parser
-import Environment exposing (Env, lookup)
+import Environment exposing (Env, lookup, varsToEnv, envToVars)
 import Evaluate
 import Types exposing (..)
 import Typecheck exposing (CheckResult(..), typecheck, checkResultToString, typeToString)
@@ -53,6 +53,8 @@ init _ =
 type Msg
   = Change String | IncDepth Int | DecDepth Int | GotAsts (Result String (List (String, Term)))
 
+
+
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
@@ -78,7 +80,7 @@ update msg model =
       case r of
         Ok ts ->
           let
-            vs = map (\(n,t) -> {name=n, term=t}) ts
+            vs = map (\(n,t) -> {name=n, term=t, vtype=typecheck t}) ts
             ris = genRenderInfos 3 vs
           in
             ({ model | vars = vs, renderTreeInfos = ris }
@@ -86,6 +88,18 @@ update msg model =
 
         Err e ->
           ({ model | errorMsg = e }, Cmd.none)
+
+
+{-genEnv : List (String, Term) -> Env -> Env
+genEnv vs e =
+  case vs of
+    [] -> []
+  
+    v::vr ->
+      let
+        newEnv = 
+      in-}
+
 
 
 -- runs update function on items passing the filter function
@@ -105,7 +119,7 @@ filterUpdate cond upd xs =
 Generates a list of render infos.  This function exists mostly so that render
 infos can recieve ids.
 -}
-genRenderInfos : Int -> List Var -> List RenderTreeInfo
+genRenderInfos : Int -> List Var -> List RenderTreeInfo -- Changed List Var to Env
 genRenderInfos depth vars =
   List.indexedMap
     ( \i var ->
@@ -293,6 +307,8 @@ renderTerm e t =
     , span [ class spanClass ] [ text (checkResultToString checkResult) ]
     ]
 
+-- stringToTerm : String -> Maybe Term
+-- stringToTerm s =
 
 listSubterms : Term -> List Term
 listSubterms t =
@@ -305,7 +321,7 @@ listSubterms t =
     Eq x y ->    [x, y]
     And x y ->   [x, y]
     Or x y ->    [x, y]
-    Lam x y ->   [x, y]
+    Lam x y ->   [VTerm ("\\" ++ x), y]
     App x y ->   [x, y]
     _ ->         []
 
@@ -450,7 +466,7 @@ genRenderTree depth e t =
         Eq x y    -> [gTree x, gTree y]
         And x y   -> [gTree x, gTree y]
         Or x y    -> [gTree x, gTree y]
-        --Lam x y   -> [gTree x, gTree y]
+        -- Lam x y   -> [gTree (VTerm (x)), gTree y]
         App x y   -> [gTree x, gTree y]
         _         -> []
 
