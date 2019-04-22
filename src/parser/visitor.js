@@ -30,6 +30,56 @@ class ToAstVisitor extends BaseScriptVisitor {
         this.validateVisitor()
     }
 
+    statement(ctx) {
+        if(ctx.assignmentStatement) {
+            return this.visit(ctx.assignmentStatement)
+        }
+        else if(ctx.typeStatement) {
+            return this.visit(ctx.typeStatement)
+        }
+        else {
+            throw "Statement has no valid type"
+        }
+    }
+
+    typeStatement(ctx) {
+        const assignType = this.visit(ctx.type)
+        const id = ctx.Identifier[0].image
+
+        return {
+            type: "TYPE_STMT",
+            identifier: id,
+            assignType: assignType,
+        }
+    }
+
+    type(ctx) {
+        if(ctx.atomicType.length > 1) {
+            const children = ctx.atomicType.map(node => this.visit(node))
+
+            return {
+                type: "FN_TYPE",
+                children: children,
+            }
+        }
+        else {
+            return this.visit(ctx.atomicType)
+        }
+    }
+
+    atomicType(ctx) {
+        if(ctx.type) {
+            return this.visit(ctx.type)
+        }
+        else {
+            const value = ctx.BasicType[0].image
+            return {
+                type: "BASIC_TYPE",
+                value: value,
+            }
+        }
+    }
+
     assignmentStatement(ctx) {
         const id = ctx.Identifier[0].image
 
@@ -173,7 +223,7 @@ module.exports = {
         parserInstance.input = lexResult.tokens
 
         // Automatic CST created when parsing
-        const cst = parserInstance.assignmentStatement()
+        const cst = parserInstance.statement()
 
         if (parserInstance.errors.length > 0) {
             throw Error(

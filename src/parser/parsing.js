@@ -11,6 +11,10 @@ const tokenVocabulary = scriptLexer.tokenVocabulary
 const Identifier = tokenVocabulary.Identifier
 const Integer = tokenVocabulary.Integer
 const Boolean = tokenVocabulary.Boolean
+const Lambda = tokenVocabulary.Lambda
+const Arrow = tokenVocabulary.Arrow
+const TypeAssignment = tokenVocabulary.TypeAssignment
+const BasicType = tokenVocabulary.BasicType
 const Equivalence = tokenVocabulary.Equivalence
 const Assignment = tokenVocabulary.Assignment
 const Addition = tokenVocabulary.Addition
@@ -30,6 +34,39 @@ class ScriptParser extends Parser {
 
         // for conciseness
         const $ = this
+
+        $.RULE("statement", () => {
+            $.OR([
+                { ALT: () => { $.SUBRULE($.typeStatement) }}, 
+                { ALT: () => { $.SUBRULE($.assignmentStatement) }}, 
+            ])
+        })
+
+        $.RULE("typeStatement", () => {
+            $.CONSUME(Identifier)
+            $.CONSUME(TypeAssignment)
+            $.SUBRULE($.type)
+        })
+
+        $.RULE("type", () => {
+            $.SUBRULE($.atomicType)
+            $.MANY( () => {
+                $.CONSUME(Arrow)
+                $.SUBRULE2($.atomicType)
+            })
+        })
+
+        $.RULE("atomicType", () => {
+            $.OR([
+                { ALT: () => {
+                    $.CONSUME(LParen)
+                    $.SUBRULE($.type)
+                    $.CONSUME(RParen)
+                }}, 
+                { ALT: () => { $.CONSUME(BasicType) }}, 
+            ])
+            
+        })
 
         $.RULE("assignmentStatement", () => {
             $.CONSUME(Identifier)
@@ -123,7 +160,6 @@ module.exports = {
         // ".input" is a setter which will reset the parser's internal's state.
         parserInstance.input = lexResult.tokens
 
-        // No semantic actions so this won't return anything yet.
         parserInstance.assignmentStatement()
 
         if (parserInstance.errors.length > 0) {
