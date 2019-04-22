@@ -93,7 +93,7 @@ suite =
               |> eval env
               |> Expect.equal Nothing
 
-      {-, test "variable substitution" <|
+      , test "variable substitution" <|
         \_ ->
           let
             env = [("x", CTerm (CInt 9), TInt)]
@@ -118,6 +118,6 @@ suite =
           in
             App (Lam "x" (Plus (VTerm "x") (CTerm (CInt 3)))) (CTerm (CInt 5))
               |> eval env
-              |> Expect.equal (Just (VInt 8))-}
+              |> Expect.equal (Just (VInt 8))
       ]
     ]

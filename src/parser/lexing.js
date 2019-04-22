@@ -22,6 +22,15 @@ const Boolean = createToken({
 const If = createToken({name: "If", pattern: /if/, longer_alt: Identifier})
 const Then = createToken({name: "Then", pattern: /then/, longer_alt: Identifier})
 const Else = createToken({name: "Else", pattern: /else/, longer_alt: Identifier})
+const Lambda = createToken({name: "Lambda", pattern: /\\/ })
+const Arrow = createToken({name: "Arrow", pattern: /->/ })
+const TypeAssignment = createToken({name: "TypeAssignment", pattern: /::/ })
+
+const BasicType = createToken({
+    name: "BasicType",
+    pattern: /Int|Bool/,
+    longer_alt: Identifier
+    })
 
 const Equivalence = createToken({name: "Equivalence", pattern: /==/ })
 const Assignment = createToken({ name: "Assignment", pattern: /=/ })
@@ -48,7 +57,11 @@ const allTokens = [
     If,
     Then,
     Else,
+    BasicType,
     Identifier,
+    Lambda,
+    Arrow,
+    TypeAssignment,
     Integer,
     Equivalence,
     Assignment,
