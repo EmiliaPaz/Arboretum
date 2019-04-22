@@ -130,9 +130,16 @@ class ScriptParser extends Parser {
         })
 
         $.RULE("multExpression", () => {
-            $.SUBRULE($.atomicExpression)
+            $.SUBRULE($.appExpression)
             $.MANY( () => {
                 $.CONSUME(Multiplication)
+                $.SUBRULE2($.appExpression)
+            })
+        })
+
+        $.RULE("appExpression", () => {
+            $.SUBRULE($.atomicExpression)
+            $.MANY( () => {
                 $.SUBRULE2($.atomicExpression)
             })
         })

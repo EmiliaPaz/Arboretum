@@ -252,6 +252,7 @@ exprSwitch s =
     "OR_EXPR" -> orDecoder
     "EQ_EXPR" -> eqDecoder
     "FN_EXPR" -> fnDecoder
+    "APP_EXPR" -> appDecoder
     _      -> Decode.fail ("unrecognized type: " ++ s)
 
 fnDecoder : Decoder Term
@@ -301,6 +302,7 @@ subtDecoder = binDecoder (\t1 t2 -> Minus t1 t2)
 multDecoder = binDecoder (\t1 t2 -> Times t1 t2)
 andDecoder = binDecoder (\t1 t2 -> And t1 t2)
 orDecoder = binDecoder (\t1 t2 -> Or t1 t2)
+appDecoder = binDecoder (\t1 t2 -> App t1 t2)
 
 eqDecoder : Decoder Term
 eqDecoder =
