@@ -295,7 +295,7 @@ binCombinerRight comb first ts =
     [] ->
       first
     t::tr ->
-      comb first (binCombiner comb t tr)
+      comb first (binCombinerRight comb t tr)
 
 addDecoder = binDecoder (\t1 t2 -> Plus t1 t2)
 subtDecoder = binDecoder (\t1 t2 -> Minus t1 t2)
