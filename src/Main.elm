@@ -212,7 +212,7 @@ fnTypeDecoder =
       (\ts ->
         case ts of
           t1::t2::tr ->
-            Decode.succeed (binCombinerRight (\l r -> TFun l r)  t1 ([t2] ++ tr))
+            Decode.succeed (binCombinerRight (\l r -> TFun l r) t1 ([t2] ++ tr))
           _ ->
             Decode.fail "function type has fewer than 2 children"
       )
@@ -225,7 +225,7 @@ basicTypeDecoder =
         case t of
           "Int"  -> Decode.succeed TInt
           "Bool" -> Decode.succeed TBool
-          _      -> Decode.fail ("Invalid bool: " ++ t)
+          _      -> Decode.fail ("Invalid basic type: " ++ t)
       )
 
 assignDecoder : Decoder (String, Term)
@@ -303,7 +303,7 @@ binCombinerRight comb first ts =
     [] ->
       first
     t::tr ->
-      comb first (binCombiner comb t tr)
+      comb first (binCombinerRight comb t tr)
 
 addDecoder = binDecoder (\t1 t2 -> Plus t1 t2)
 subtDecoder = binDecoder (\t1 t2 -> Minus t1 t2)
