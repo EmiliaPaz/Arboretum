@@ -75,7 +75,19 @@ class ScriptParser extends Parser {
         })
 
         $.RULE("expression", () => {
-            $.SUBRULE($.eqExpression)
+            $.SUBRULE($.fnExpression)
+        })
+        
+        $.RULE("fnExpression", () => {
+            $.OR([
+                { ALT: () => {
+                    $.CONSUME(Lambda)
+                    $.CONSUME(Identifier)
+                    $.CONSUME(Arrow)
+                    $.SUBRULE($.eqExpression)
+                }}, 
+                { ALT: () => { $.SUBRULE2($.eqExpression) }}, 
+            ])
         })
 
         $.RULE("eqExpression", () => {

@@ -94,9 +94,25 @@ class ToAstVisitor extends BaseScriptVisitor {
 
     // expression rule is some sort of wrapper right now
     expression(ctx) {
-        const expr = this.visit(ctx.eqExpression)
+        const expr = this.visit(ctx.fnExpression)
 
         return expr
+    }
+
+    fnExpression(ctx) {
+        if(ctx.Lambda) {
+            const variable = ctx.Identifier[0].image
+            const body = this.visit(ctx.eqExpression)
+
+            return {
+                type: "FN_EXPR",
+                variable: variable,
+                body: body,
+            }
+        }
+        else {
+            return this.visit(ctx.eqExpression)
+        }
     }
 
     /*
