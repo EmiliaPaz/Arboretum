@@ -15,9 +15,8 @@ type Term = CTerm Const | VTerm String | Plus Term Term | Minus Term Term | Time
             | Eq Term Term | And Term Term | Or Term Term | Lam String Term | App Term Term
             | MissingInt | MissingBool | Missing | EmptyTree
 
--- V(alue)Type is a type that a TreeAssembly term can evaluate to
-{-
-  TAny may be used when the type can be either int or bool (discuss)
+{- 
+  V(alue)Type is a type that a TreeAssembly term can evaluate to
 -}
 type VType = TBool | TInt | TFun VType VType
 
