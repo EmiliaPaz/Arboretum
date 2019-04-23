@@ -3,11 +3,10 @@ module Evaluate exposing (..)
 import List exposing (..)
 import List.Extra exposing (elemIndex, getAt)
 import Types exposing (..)
-import Environment exposing (Env, lookup)
-import Typecheck exposing(substitute)
+import Environment exposing (Env, lookup, extend, addOrModify)
 
 -- Val is a value that a term can evaluate to
-type Val = VBool Bool | VInt Int
+type Val = VBool Bool | VInt Int | VFun Env String Term | VTuple Val Val 
 
 boolToString : Bool -> String
 boolToString b =
@@ -19,9 +18,14 @@ boolToString b =
 valToString : Maybe Val -> String
 valToString v =
   case v of
-    Just (VBool x) -> boolToString x
-    Just (VInt x)  -> String.fromInt x
-    Nothing        -> "Undefined"
+    Just (VBool x)    -> boolToString x
+    Just (VInt x)     -> String.fromInt x
+    Just (VFun e n t) ->  "\\" ++ n ++ " -> " ++ (termToString t)
+    Just (VTuple x y) -> 
+      let x2 = Just x
+          y2 = Just y
+      in "(" ++ (valToString x2) ++ "," ++ (valToString y2) ++ ")"
+    Nothing           -> "Undefined"
 
 
 termToString : Term -> String
@@ -54,7 +58,7 @@ termToString t =
       "(" ++ (termToString t1) ++ " || " ++ (termToString t2) ++ ")"
 
     Lam t1 t2 ->
-      "(\\ " ++ (termToString t1) ++ " -> " ++ (termToString t2) ++ ")"
+      "(\\" ++ t1 ++ " -> " ++ (termToString t2) ++ ")"
 
     App t1 t2 ->
       "(" ++ (termToString t1) ++ (termToString t2) ++ ")"
@@ -106,6 +110,13 @@ takeOne (mx, my) =
         Just y ->  Just y
         Nothing -> Nothing
 
+valToTerm : Val -> Term
+valToTerm v =
+  case v of
+    VBool b -> CTerm (CBool b)
+    VInt i -> CTerm (CInt i)
+    VFun e s t -> Lam s t
+    VTuple x y -> Tuple (valToTerm x) (valToTerm y)
 
 -- evaluates a term
 eval : Env -> Term -> Maybe Val
@@ -145,22 +156,23 @@ eval e t =
     Or x y ->
       wrapBool ( tryBinFn (||) (tryBool (evale x)) (tryBool (evale y)) )
 
-    Lam x y ->
-      evale y
+    -- Lambda gets evaluated to a closure.
+    Lam x y -> Just (VFun e x y)
 
+    --Same as before, except we use a closure rather than substitution.
     App x y ->
-      case x of
-        Lam w z ->
-          case w of
-            VTerm n -> evale (substitute z y n)
+      case evale x of
+        Just (VFun e1 a b) ->
+          case evale y of
+            Just w ->
+              let e2 = addOrModify e1 (True, False) (a, valToTerm w, TInt) in
+                eval e2 b
             _ -> Nothing
-        VTerm v ->
-          let lambda = lookup e v
-            in case lambda of
-              Just (Lam w z) ->
-                case w of
-                  VTerm n -> evale (substitute z y n)
-                  _ -> Nothing
-              _ -> Nothing
         _ -> Nothing
+    
+    Tuple x y -> 
+          case (evale x, evale y) of
+            (Just x2, Just y2) -> Just (VTuple x2 y2)
+            _ -> Nothing
+
     _ -> Nothing

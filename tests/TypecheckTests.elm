@@ -4,7 +4,7 @@ import Expect exposing (Expectation)
 import Fuzz exposing (Fuzzer, int, list, string)
 import Test exposing (..)
 
-import Typecheck exposing (CheckResult(..), VType(..), typecheck)
+import Typecheck exposing (CheckResult(..), typecheck)
 import Environment exposing (Env)
 import Types exposing (..)
 
@@ -51,7 +51,7 @@ suite =
       , test "variables evaluate to their types" <|
         \_ ->
           let
-            env = [ ( "a", CTerm (CInt 0) ) ]
+            env = [ ( "a", CTerm (CInt 0) , TInt) ]
           in
             VTerm "a"
               |> typecheck env

@@ -4,14 +4,14 @@ import Browser exposing (Document)
 import Html exposing (Html, button, div, text, h1, h3, input, span, textarea, br, p)
 import Html.Events exposing (onClick, onInput)
 import Html.Attributes exposing (..)
-import List exposing (map,head,tail,reverse)
+import List exposing (map, filterMap, head, tail, reverse, filter)
 import Debug exposing (toString)
 import Json.Decode as Decode exposing (Decoder, field, bool, int, string)
 import String exposing (split)
 
 import Tokenizer
 import Parser
-import Environment exposing (Env, lookup)
+import Environment exposing (Env, lookup, varsToEnv, envToVars, extend)
 import Evaluate
 import Types exposing (..)
 import Typecheck exposing (CheckResult(..), typecheck, checkResultToString, typeToString)
@@ -51,7 +51,9 @@ init _ =
 -- UPDATE
 
 type Msg
-  = Change String | IncDepth Int | DecDepth Int | GotAsts (Result String (List (String, Term)))
+  = Change String | IncDepth Int | DecDepth Int | GotAsts (Result String (List (String, Either Term VType)))
+
+
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -78,7 +80,8 @@ update msg model =
       case r of
         Ok ts ->
           let
-            vs = map (\(n,t) -> {name=n, term=t}) ts
+            env = joinTermsWithTypes ts
+            vs = envToVars env
             ris = genRenderInfos 3 vs
           in
             ({ model | vars = vs, renderTreeInfos = ris }
@@ -86,6 +89,37 @@ update msg model =
 
         Err e ->
           ({ model | errorMsg = e }, Cmd.none)
+
+joinTermsWithTypes : List (String, Either Term VType) -> Env
+joinTermsWithTypes ts =
+  filterMap
+    (\(n, t) ->
+      case t of
+        Left term ->
+          let
+            ty = case findType n ts of
+                   Just foundType -> foundType
+                   Nothing        -> TInt
+          in
+            Just (n, term, ty)
+      
+        _ -> Nothing
+    ) ts
+
+findType : String -> List (String, Either Term VType) -> Maybe VType
+findType n ts =
+  ts
+    |> filterMap
+      (\(tName, t) ->
+        case n == tName of
+          True ->
+            case t of
+              Right ty -> Just ty
+              Left _   -> Nothing
+
+          _      -> Nothing
+      )
+    |> head
 
 
 -- runs update function on items passing the filter function
@@ -105,7 +139,7 @@ filterUpdate cond upd xs =
 Generates a list of render infos.  This function exists mostly so that render
 infos can recieve ids.
 -}
-genRenderInfos : Int -> List Var -> List RenderTreeInfo
+genRenderInfos : Int -> List Var -> List RenderTreeInfo -- Changed List Var to Env
 genRenderInfos depth vars =
   List.indexedMap
     ( \i var ->
@@ -127,11 +161,72 @@ subscriptions _ =
   gotAst (decodeAsts >> GotAsts)
 
 
-decodeAsts : Decode.Value -> Result String (List (String, Term))
+type Either a b = Left a | Right b
+
+-- an ast either will produce a term or a type
+decodeAsts : Decode.Value -> Result String (List (String, Either Term VType))
 decodeAsts v =
-  case Decode.decodeValue (Decode.list assignDecoder) v of
+  case Decode.decodeValue (Decode.list stmtDecoder) v of
     Ok t -> Ok t
     Err e -> Err (Decode.errorToString e)
+
+stmtDecoder : Decoder (String, Either Term VType)
+stmtDecoder =
+  field "type" string
+    |> Decode.andThen
+      (\t ->
+        case t of
+          "TYPE_STMT" ->
+            typeAssignDecoder
+              |> Decode.andThen (\(n, ty) -> Decode.succeed (n, Right ty))
+
+          "ASSIGN_STMT" ->
+            assignDecoder
+              |> Decode.andThen (\(n, tm) -> Decode.succeed (n, Left tm))
+          
+          _ ->
+            Decode.fail ("Unrecognized statement type: " ++ t)
+      )
+
+typeAssignDecoder : Decoder (String, VType)
+typeAssignDecoder =
+  Decode.map2 (\n t -> (n, t))
+    (field "identifier" string)
+    (field "assignType" typeDecoder)
+
+typeDecoder : Decoder VType
+typeDecoder =
+  field "type" string
+    |> Decode.andThen
+      (\t ->
+        case t of
+          "FN_TYPE"    -> fnTypeDecoder
+          "BASIC_TYPE" -> basicTypeDecoder
+          _            -> Decode.fail ("Unrecognized type: " ++ t)
+      )
+
+fnTypeDecoder : Decoder VType
+fnTypeDecoder =
+  field "children" (Decode.list typeDecoder)
+    |> Decode.andThen
+      (\ts ->
+        case ts of
+          t1::t2::tr ->
+            Decode.succeed (binCombinerRight (\l r -> TFun l r) t1 ([t2] ++ tr))
+          _ ->
+            Decode.fail "function type has fewer than 2 children"
+      )
+
+basicTypeDecoder : Decoder VType
+basicTypeDecoder =
+  field "value" string
+    |> Decode.andThen
+      (\t ->
+        case t of
+          "Int"  -> Decode.succeed TInt
+          "Bool" -> Decode.succeed TBool
+          _      -> Decode.fail ("Invalid basic type: " ++ t)
+      )
 
 assignDecoder : Decoder (String, Term)
 assignDecoder = 
@@ -156,7 +251,15 @@ exprSwitch s =
     "AND_EXPR" -> andDecoder
     "OR_EXPR" -> orDecoder
     "EQ_EXPR" -> eqDecoder
+    "FN_EXPR" -> fnDecoder
+    "APP_EXPR" -> appDecoder
     _      -> Decode.fail ("unrecognized type: " ++ s)
+
+fnDecoder : Decoder Term
+fnDecoder =
+  Decode.map2 (\n t -> Lam n t)
+    (field "variable" string)
+    (field "body" exprDecoder)
 
 binDecoder : (Term -> Term -> Term) -> Decoder Term
 binDecoder comb =
@@ -170,13 +273,14 @@ binDecoder comb =
             Decode.fail "binary expression has fewer than 2 children"
       )
 
+
 {-
 This function needs at least one item in list to return a Term; the Elm
 community seems to like this approach of passing a 'first' input followed
 by the remaineder to ensure that at least one input is recieved.  I'm still
 not sure how I feel about this.
 -}
-binCombiner : (Term -> Term -> Term) -> Term -> List Term -> Term
+binCombiner : (a -> a -> a) -> a -> List a -> a
 binCombiner comb first ts =
   case ts of
     [] ->
@@ -184,11 +288,21 @@ binCombiner comb first ts =
     t::tr ->
       comb (binCombiner comb t tr) first
 
+-- Right-associative version of binCombinder
+binCombinerRight : (a -> a -> a) -> a -> List a -> a
+binCombinerRight comb first ts =
+  case ts of
+    [] ->
+      first
+    t::tr ->
+      comb first (binCombinerRight comb t tr)
+
 addDecoder = binDecoder (\t1 t2 -> Plus t1 t2)
 subtDecoder = binDecoder (\t1 t2 -> Minus t1 t2)
 multDecoder = binDecoder (\t1 t2 -> Times t1 t2)
 andDecoder = binDecoder (\t1 t2 -> And t1 t2)
 orDecoder = binDecoder (\t1 t2 -> Or t1 t2)
+appDecoder = binDecoder (\t1 t2 -> App t1 t2)
 
 eqDecoder : Decoder Term
 eqDecoder =
@@ -293,6 +407,8 @@ renderTerm e t =
     , span [ class spanClass ] [ text (checkResultToString checkResult) ]
     ]
 
+-- stringToTerm : String -> Maybe Term
+-- stringToTerm s =
 
 listSubterms : Term -> List Term
 listSubterms t =
@@ -305,7 +421,7 @@ listSubterms t =
     Eq x y ->    [x, y]
     And x y ->   [x, y]
     Or x y ->    [x, y]
-    Lam x y ->   [x, y]
+    Lam x y ->   [VTerm ("\\" ++ x), y]
     App x y ->   [x, y]
     Tuple x y -> [x, y]
     _ ->         []
@@ -455,7 +571,7 @@ genRenderTree depth e t =
         Eq x y    -> [gTree x, gTree y]
         And x y   -> [gTree x, gTree y]
         Or x y    -> [gTree x, gTree y]
-        -- Lam x y   -> [gTree x, gTree y]
+        -- Lam x y   -> [gTree (VTerm (x)), gTree y]
         App x y   -> [gTree x, gTree y]
         Tuple x y -> [gTree x, gTree y]
         _         -> []
