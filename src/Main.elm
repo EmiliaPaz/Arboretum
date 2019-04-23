@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-module Main exposing (..)
-=======
 port module Main exposing (..)
->>>>>>> origin
 
 import Browser exposing (Document)
 import Html exposing (Html, button, div, text, h1, h3, input, span, textarea, br, p)
@@ -62,19 +58,7 @@ update msg model =
   case msg of
     Change newContent ->
       let
-<<<<<<< HEAD
-        c = newContent
-        t = Tokenizer.tokenize (map (String.words) (String.lines c))
-        -- v = map Parser.parse t
-        v = [ {name="a",term=(CTerm (CInt 1))}, 
-              {name="b",term=(Lam (VTerm "a") (Plus (VTerm "a") (CTerm (CInt 1)))) },
-              {name="c",term=(App (VTerm "b") (VTerm "a"))},
-              {name="d",term=(Plus (CTerm (CInt 10)) (CTerm(CBool True)))},
-              {name="e",term=(Tuple (CTerm (CInt 1)) (VTerm "c") )}]
-        rs = genRenderInfos 3 v
-=======
         lines = split "\n" newContent
->>>>>>> origin
       in
         ({ model | content = newContent }, parseLines lines)
 
