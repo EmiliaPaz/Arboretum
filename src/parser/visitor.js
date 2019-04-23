@@ -30,6 +30,56 @@ class ToAstVisitor extends BaseScriptVisitor {
         this.validateVisitor()
     }
 
+    statement(ctx) {
+        if(ctx.assignmentStatement) {
+            return this.visit(ctx.assignmentStatement)
+        }
+        else if(ctx.typeStatement) {
+            return this.visit(ctx.typeStatement)
+        }
+        else {
+            throw "Statement has no valid type"
+        }
+    }
+
+    typeStatement(ctx) {
+        const assignType = this.visit(ctx.type)
+        const id = ctx.Identifier[0].image
+
+        return {
+            type: "TYPE_STMT",
+            identifier: id,
+            assignType: assignType,
+        }
+    }
+
+    type(ctx) {
+        if(ctx.atomicType.length > 1) {
+            const children = ctx.atomicType.map(node => this.visit(node))
+
+            return {
+                type: "FN_TYPE",
+                children: children,
+            }
+        }
+        else {
+            return this.visit(ctx.atomicType)
+        }
+    }
+
+    atomicType(ctx) {
+        if(ctx.type) {
+            return this.visit(ctx.type)
+        }
+        else {
+            const value = ctx.BasicType[0].image
+            return {
+                type: "BASIC_TYPE",
+                value: value,
+            }
+        }
+    }
+
     assignmentStatement(ctx) {
         const id = ctx.Identifier[0].image
 
@@ -44,9 +94,25 @@ class ToAstVisitor extends BaseScriptVisitor {
 
     // expression rule is some sort of wrapper right now
     expression(ctx) {
-        const expr = this.visit(ctx.eqExpression)
+        const expr = this.visit(ctx.fnExpression)
 
         return expr
+    }
+
+    fnExpression(ctx) {
+        if(ctx.Lambda) {
+            const variable = ctx.Identifier[0].image
+            const body = this.visit(ctx.eqExpression)
+
+            return {
+                type: "FN_EXPR",
+                variable: variable,
+                body: body,
+            }
+        }
+        else {
+            return this.visit(ctx.eqExpression)
+        }
     }
 
     /*
@@ -123,10 +189,23 @@ class ToAstVisitor extends BaseScriptVisitor {
     }
     
     multExpression(ctx) {
+        if(ctx.appExpression.length > 1) {
+            const children = ctx.appExpression.map(node => this.visit(node))
+            return {
+                type: "MULT_EXPR",
+                children: children,
+            }
+        }
+        else {
+            return this.visit(ctx.appExpression)
+        }
+    }
+
+    appExpression(ctx) {
         if(ctx.atomicExpression.length > 1) {
             const children = ctx.atomicExpression.map(node => this.visit(node))
             return {
-                type: "MULT_EXPR",
+                type: "APP_EXPR",
                 children: children,
             }
         }
@@ -173,7 +252,7 @@ module.exports = {
         parserInstance.input = lexResult.tokens
 
         // Automatic CST created when parsing
-        const cst = parserInstance.assignmentStatement()
+        const cst = parserInstance.statement()
 
         if (parserInstance.errors.length > 0) {
             throw Error(
