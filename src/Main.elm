@@ -1,11 +1,17 @@
+<<<<<<< HEAD
 module Main exposing (..)
+=======
+port module Main exposing (..)
+>>>>>>> origin
 
 import Browser exposing (Document)
-import Html exposing (Html, button, div, text, h1, h3, input, span, textarea, br)
+import Html exposing (Html, button, div, text, h1, h3, input, span, textarea, br, p)
 import Html.Events exposing (onClick, onInput)
 import Html.Attributes exposing (..)
-import List exposing (map,head,tail)
+import List exposing (map,head,tail,reverse)
 import Debug exposing (toString)
+import Json.Decode as Decode exposing (Decoder, field, bool, int, string)
+import String exposing (split)
 
 import Tokenizer
 import Parser
@@ -28,33 +34,35 @@ main =
 
 type alias Model =
   { content : String
-  , tokens  : List (List Token)
   , vars       : List Var
   , renderTreeInfos : List RenderTreeInfo
+  , errorMsg : String
   }
 
 
 init : () -> (Model, Cmd Msg)
 init _ =
   ( { content = ""
-    , tokens = [[]]
     , vars = []
     , renderTreeInfos = []
+    , errorMsg = ""
     }
   , Cmd.none )
+
 
 
 
 -- UPDATE
 
 type Msg
-  = Change String | IncDepth Int | DecDepth Int
+  = Change String | IncDepth Int | DecDepth Int | GotAsts (Result String (List (String, Term)))
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
     Change newContent ->
       let
+<<<<<<< HEAD
         c = newContent
         t = Tokenizer.tokenize (map (String.words) (String.lines c))
         -- v = map Parser.parse t
@@ -64,13 +72,11 @@ update msg model =
               {name="d",term=(Plus (CTerm (CInt 10)) (CTerm(CBool True)))},
               {name="e",term=(Tuple (CTerm (CInt 1)) (VTerm "c") )}]
         rs = genRenderInfos 3 v
+=======
+        lines = split "\n" newContent
+>>>>>>> origin
       in
-      ({ model |
-          content = c
-        , tokens = t
-        , vars = v
-        , renderTreeInfos = rs
-       }, Cmd.none)
+        ({ model | content = newContent }, parseLines lines)
 
     IncDepth id ->
       let
@@ -83,6 +89,19 @@ update msg model =
         newRTs = filterUpdate (\x -> x.id == id) (\x -> {x | depth = x.depth - 1}) model.renderTreeInfos
       in
         ({model | renderTreeInfos = newRTs} , Cmd.none )
+    
+    GotAsts r ->
+      case r of
+        Ok ts ->
+          let
+            vs = map (\(n,t) -> {name=n, term=t}) ts
+            ris = genRenderInfos 3 vs
+          in
+            ({ model | vars = vs, renderTreeInfos = ris }
+            , Cmd.none)
+
+        Err e ->
+          ({ model | errorMsg = e }, Cmd.none)
 
 
 -- runs update function on items passing the filter function
@@ -113,11 +132,105 @@ genRenderInfos depth vars =
     vars
 
 
+-- PORTS
+port parseLines : List String -> Cmd a
+port gotAst : (Decode.Value -> msg) -> Sub msg
+
+
 -- SUBSCRIPTIONS
 subscriptions : Model -> Sub Msg
-subscriptions model =
-  Sub.none
+subscriptions _ =
+  gotAst (decodeAsts >> GotAsts)
 
+
+decodeAsts : Decode.Value -> Result String (List (String, Term))
+decodeAsts v =
+  case Decode.decodeValue (Decode.list assignDecoder) v of
+    Ok t -> Ok t
+    Err e -> Err (Decode.errorToString e)
+
+assignDecoder : Decoder (String, Term)
+assignDecoder = 
+  Decode.map2 (\id t -> (id, t))
+    (field "identifier" string)
+    (field "expression" exprDecoder)
+
+exprDecoder : Decoder Term
+exprDecoder =
+  field "type" string
+    |> Decode.andThen exprSwitch
+
+exprSwitch : String -> Decoder Term
+exprSwitch s =
+  case s of
+    "INT"  -> intDecoder
+    "BOOL" -> boolDecoder
+    "ID"   -> idDecoder
+    "ADD_EXPR" -> addDecoder
+    "SUBT_EXPR" -> subtDecoder
+    "MULT_EXPR" -> multDecoder
+    "AND_EXPR" -> andDecoder
+    "OR_EXPR" -> orDecoder
+    "EQ_EXPR" -> eqDecoder
+    _      -> Decode.fail ("unrecognized type: " ++ s)
+
+binDecoder : (Term -> Term -> Term) -> Decoder Term
+binDecoder comb =
+  field "children" (Decode.list exprDecoder)
+    |> Decode.andThen
+      (\ts ->
+        case reverse ts of
+          t1::t2::tr ->
+            Decode.succeed (binCombiner comb t1 ([t2] ++ tr))
+          _ ->
+            Decode.fail "binary expression has fewer than 2 children"
+      )
+
+{-
+This function needs at least one item in list to return a Term; the Elm
+community seems to like this approach of passing a 'first' input followed
+by the remaineder to ensure that at least one input is recieved.  I'm still
+not sure how I feel about this.
+-}
+binCombiner : (Term -> Term -> Term) -> Term -> List Term -> Term
+binCombiner comb first ts =
+  case ts of
+    [] ->
+      first
+    t::tr ->
+      comb (binCombiner comb t tr) first
+
+addDecoder = binDecoder (\t1 t2 -> Plus t1 t2)
+subtDecoder = binDecoder (\t1 t2 -> Minus t1 t2)
+multDecoder = binDecoder (\t1 t2 -> Times t1 t2)
+andDecoder = binDecoder (\t1 t2 -> And t1 t2)
+orDecoder = binDecoder (\t1 t2 -> Or t1 t2)
+
+eqDecoder : Decoder Term
+eqDecoder =
+  Decode.map2 (\l r -> (l, r))
+    (field "lhs" exprDecoder)
+    (field "rhs" exprDecoder)
+    |> Decode.andThen
+      (\(l, r) -> Decode.succeed (Eq l r))
+
+intDecoder : Decoder Term
+intDecoder =
+  field "value" int
+    |> Decode.andThen
+      (\i -> Decode.succeed (CTerm (CInt i)))
+
+boolDecoder : Decoder Term
+boolDecoder =
+  field "value" bool
+    |> Decode.andThen
+      (\b -> Decode.succeed (CTerm (CBool b)))
+
+idDecoder : Decoder Term
+idDecoder =
+  field "value" string
+    |> Decode.andThen
+      (\i -> Decode.succeed (VTerm i))
 
 -- VIEW
 
@@ -127,6 +240,7 @@ view model =
   , body =
     [
       Html.node "link" [ Html.Attributes.rel "stylesheet", Html.Attributes.href "style.css" ] []
+      , p [] [text model.errorMsg]
       , div [class "tokenizer-parser-title-container"]
         [
           div [class "textarea-container"]
@@ -136,9 +250,7 @@ view model =
           ]
           , div [class "tokenizer-parser-container"]
           [
-            h3 [ class "css-title" ] [text "Tokens:"]
-            , div [class "expression-builder"] (printTknsLBL model.tokens)
-            , h3 [ class "css-title" ] [text "Parse Tree:"]
+            h3 [ class "css-title" ] [text "Parse Tree:"]
             , div [class "expression-builder"] (printPT model.vars)
           ]
         ]
