@@ -9,7 +9,6 @@ import Debug exposing (toString)
 import Json.Decode as Decode exposing (Decoder, field, bool, int, string)
 import String exposing (split)
 
-
 import Environment exposing (Env, lookup, varsToEnv, envToVars, extend)
 import Evaluate
 import Types exposing (..)
