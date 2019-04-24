@@ -9,8 +9,7 @@ import Debug exposing (toString)
 import Json.Decode as Decode exposing (Decoder, field, bool, int, string)
 import String exposing (split)
 
-import Tokenizer
-import Parser
+
 import Environment exposing (Env, lookup, varsToEnv, envToVars, extend)
 import Evaluate
 import Types exposing (..)
@@ -75,7 +74,7 @@ update msg model =
         newRTs = filterUpdate (\x -> x.id == id) (\x -> {x | depth = x.depth - 1}) model.renderTreeInfos
       in
         ({model | renderTreeInfos = newRTs} , Cmd.none )
-    
+
     GotAsts r ->
       case r of
         Ok ts ->
@@ -102,7 +101,7 @@ joinTermsWithTypes ts =
                    Nothing        -> TInt
           in
             Just (n, term, ty)
-      
+
         _ -> Nothing
     ) ts
 
@@ -183,7 +182,7 @@ stmtDecoder =
           "ASSIGN_STMT" ->
             assignDecoder
               |> Decode.andThen (\(n, tm) -> Decode.succeed (n, Left tm))
-          
+
           _ ->
             Decode.fail ("Unrecognized statement type: " ++ t)
       )
@@ -229,7 +228,7 @@ basicTypeDecoder =
       )
 
 assignDecoder : Decoder (String, Term)
-assignDecoder = 
+assignDecoder =
   Decode.map2 (\id t -> (id, t))
     (field "identifier" string)
     (field "expression" exprDecoder)
@@ -363,11 +362,11 @@ view model =
     ]
  }
 
-printTknsLBL : List (List Token) -> List (Html Msg)
-printTknsLBL tkns =
-  case tkns of
-    []-> [div [class "tkns-div"] [text ""]]
-    (l::ls) -> [div [class "tkns-div"] [text (Tokenizer.tokenizePrint l)]] ++ (printTknsLBL ls)
+-- printTknsLBL : List (List Token) -> List (Html Msg)
+-- printTknsLBL tkns =
+--   case tkns of
+--     []-> [div [class "tkns-div"] [text ""]]
+--     (l::ls) -> [div [class "tkns-div"] [text (Tokenizer.tokenizePrint l)]] ++ (printTknsLBL ls)
 
 renderSummary : Env -> RenderTree -> Html Msg
 renderSummary envr (Node rNode _) =
