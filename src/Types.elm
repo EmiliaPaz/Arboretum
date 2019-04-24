@@ -74,4 +74,4 @@ typeSignToList vt =
     TBool           -> [TBool]
     TInt            -> [TInt]
     TFun vt1 vt2    -> (typeSignToList vt1) ++ (typeSignToList vt2)
-    TTuple vt1 vt2  -> (typeSignToList vt1) ++ (typeSignToList vt2)   -- Will return the tuple as a list. Not ideal, but the function is type sign to list
+    TTuple vt1 vt2  -> [TTuple vt1 vt2 ]
