@@ -154,9 +154,22 @@ typecheck env t =
       App x y -> typecheckApp env t
 
       Tuple a b ->
-        case (typecheck env a, typecheck env b) of
-          (Checks x, Checks y) -> Checks (TTuple x y)
-          _ -> Invalid
+        case (typecheck env m, typecheck env n) of
+          -- Checks a
+          (Checks a, Checks x)            -> Checks (TTuple a x)
+          (Checks a, Fails w x y z)       -> Fails 2 (TTuple a x) (TTuple a y) (TTuple a z)
+          (Checks a, Partial x)           -> Partial (TTuple a x)
+          -- Fails a
+          (Fails a b c d, Checks x)       -> Fails 1 (TTuple b x) (TTuple c x) (TTuple d x)
+          (Fails a b c d, Fails w x y z)  -> Fails 1 (TTuple b x) (TTuple c y) (TTuple d z)  -- should put red on both terms (c,y)
+          (Fails a b c d, Partial x)      -> Fails 1 (TTuple b x) (TTuple c x) (TTuple d x)
+          -- Partial a
+          (Partial a, Checks x)           -> Partial (TTuple a x)
+          (Partial a, Fails w x y z)      -> Fails 2 (TTuple a x) (TTuple a y) (TTuple a z)
+          (Partial a, Partial x)           -> Partial (TTuple a x)
+          -- Invalid a or x
+          (Invalid, _)                    -> Invalid
+          (_, Invalid)                    -> Invalid
           
       _ -> checkSig sig args
 
