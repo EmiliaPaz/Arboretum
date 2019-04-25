@@ -153,7 +153,7 @@ typecheck env t =
 
       App x y -> typecheckApp env t
 
-      Tuple a b ->
+      Tuple m n ->
         case (typecheck env m, typecheck env n) of
           -- Checks a
           (Checks a, Checks x)            -> Checks (TTuple a x)
