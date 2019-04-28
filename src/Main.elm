@@ -295,11 +295,11 @@ binCombinerRight comb first ts =
     t::tr ->
       comb first (binCombinerRight comb t tr)
 
-addDecoder = binDecoder (\t1 t2 -> Plus t1 t2)
-subtDecoder = binDecoder (\t1 t2 -> Minus t1 t2)
-multDecoder = binDecoder (\t1 t2 -> Times t1 t2)
-andDecoder = binDecoder (\t1 t2 -> And t1 t2)
-orDecoder = binDecoder (\t1 t2 -> Or t1 t2)
+addDecoder = binDecoder (\t1 t2 -> BinTerm Plus t1 t2)
+subtDecoder = binDecoder (\t1 t2 -> BinTerm Minus t1 t2)
+multDecoder = binDecoder (\t1 t2 -> BinTerm Times t1 t2)
+andDecoder = binDecoder (\t1 t2 -> BinTerm And t1 t2)
+orDecoder = binDecoder (\t1 t2 -> BinTerm Or t1 t2)
 appDecoder = binDecoder (\t1 t2 -> App t1 t2)
 
 eqDecoder : Decoder Term
@@ -308,7 +308,7 @@ eqDecoder =
     (field "lhs" exprDecoder)
     (field "rhs" exprDecoder)
     |> Decode.andThen
-      (\(l, r) -> Decode.succeed (Eq l r))
+      (\(l, r) -> Decode.succeed (BinTerm Eq l r))
 
 intDecoder : Decoder Term
 intDecoder =
@@ -411,17 +411,12 @@ renderTerm e t =
 listSubterms : Term -> List Term
 listSubterms t =
   case t of
-    CTerm _ ->   []
-    VTerm _ ->   []
-    Plus x y ->  [x, y]
-    Minus x y -> [x, y]
-    Times x y -> [x, y]
-    Eq x y ->    [x, y]
-    And x y ->   [x, y]
-    Or x y ->    [x, y]
-    Lam x y ->   [VTerm ("\\" ++ x), y]
-    App x y ->   [x, y]
-    _ ->         []
+    CTerm _     -> []
+    VTerm _     -> []
+    BinTerm _ x y -> [x, y]
+    Lam x y     -> [VTerm ("\\" ++ x), y]
+    App x y     -> [x, y]
+    _           -> []
 
 renderSubtermsRec : Int -> List Term -> CheckResult -> List (Html Msg)
 renderSubtermsRec i ts c =
@@ -479,12 +474,14 @@ renderTermInline result t =
       case t of
         CTerm _   -> ""
         VTerm _   -> ""
-        Plus _ _  -> "+"
-        Minus _ _ -> "-"
-        Times _ _ -> "*"
-        Eq _ _    -> "=="
-        And _ _   -> "&&"
-        Or _ _    -> "||"
+        BinTerm op _ _ ->
+          case op of
+            Plus  -> "+"
+            Minus -> "-"
+            Times -> "*"
+            Eq    -> "=="
+            And   -> "&&"
+            Or    -> "||"
         Lam _ _   -> "->"
         App _ _   -> " "
         _         -> ""
@@ -558,12 +555,7 @@ genRenderTree depth e t =
           case lookup e x of
             Just subst -> [gTree subst]
             Nothing    -> []
-        Plus x y  -> [gTree x, gTree y]
-        Minus x y -> [gTree x, gTree y]
-        Times x y -> [gTree x, gTree y]
-        Eq x y    -> [gTree x, gTree y]
-        And x y   -> [gTree x, gTree y]
-        Or x y    -> [gTree x, gTree y]
+        BinTerm _ x y -> [gTree x, gTree y]
         -- Lam x y   -> [gTree (VTerm (x)), gTree y]
         App x y   -> [gTree x, gTree y]
         _         -> []

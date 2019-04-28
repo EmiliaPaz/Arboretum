@@ -35,23 +35,25 @@ termToString t =
     VTerm x ->
       x
 
-    Plus t1 t2 ->
-      "(" ++ (termToString t1) ++ " + " ++ (termToString t2) ++ ")"
+    BinTerm op t1 t2 ->
+      case op of
+        Plus ->
+          "(" ++ (termToString t1) ++ " + " ++ (termToString t2) ++ ")"
 
-    Minus t1 t2 ->
-      "(" ++ (termToString t1) ++ " - " ++ (termToString t2) ++ ")"
+        Minus ->
+          "(" ++ (termToString t1) ++ " - " ++ (termToString t2) ++ ")"
 
-    Times t1 t2 ->
-      "(" ++ (termToString t1) ++ " * " ++ (termToString t2) ++ ")"
+        Times ->
+          "(" ++ (termToString t1) ++ " * " ++ (termToString t2) ++ ")"
 
-    Eq t1 t2 ->
-      "(" ++ (termToString t1) ++ " == " ++ (termToString t2) ++ ")"
+        Eq ->
+          "(" ++ (termToString t1) ++ " == " ++ (termToString t2) ++ ")"
 
-    And t1 t2 ->
-      "(" ++ (termToString t1) ++ " && " ++ (termToString t2) ++ ")"
+        And ->
+          "(" ++ (termToString t1) ++ " && " ++ (termToString t2) ++ ")"
 
-    Or t1 t2 ->
-      "(" ++ (termToString t1) ++ " || " ++ (termToString t2) ++ ")"
+        Or ->
+          "(" ++ (termToString t1) ++ " || " ++ (termToString t2) ++ ")"
 
     Lam t1 t2 ->
       "(\\" ++ t1 ++ " -> " ++ (termToString t2) ++ ")"
@@ -129,27 +131,29 @@ eval e t =
       case lookup e v of
         Just subst -> evale subst
         Nothing    -> Nothing
+    
+    BinTerm op x y ->
+      case op of
+        Plus ->
+          wrapInt ( tryBinFn (+) (tryInt (evale x)) (tryInt (evale y)) )
 
-    Plus x y ->
-      wrapInt ( tryBinFn (+) (tryInt (evale x)) (tryInt (evale y)) )
+        Minus ->
+          wrapInt ( tryBinFn (-) (tryInt (evale x)) (tryInt (evale y)) )
 
-    Minus x y ->
-      wrapInt ( tryBinFn (-) (tryInt (evale x)) (tryInt (evale y)) )
+        Times ->
+          wrapInt ( tryBinFn (*) (tryInt (evale x)) (tryInt (evale y)) )
 
-    Times x y ->
-      wrapInt ( tryBinFn (*) (tryInt (evale x)) (tryInt (evale y)) )
+        Eq ->
+          takeOne
+            ( wrapBool ( tryBinFn (==) (tryInt (evale x)) (tryInt (evale y)) )
+            , wrapBool ( tryBinFn (==) (tryBool (evale x)) (tryBool (evale y)) )
+            )
 
-    Eq x y ->
-      takeOne
-        ( wrapBool ( tryBinFn (==) (tryInt (evale x)) (tryInt (evale y)) )
-        , wrapBool ( tryBinFn (==) (tryBool (evale x)) (tryBool (evale y)) )
-        )
+        And ->
+          wrapBool ( tryBinFn (&&) (tryBool (evale x)) (tryBool (evale y)) )
 
-    And x y ->
-      wrapBool ( tryBinFn (&&) (tryBool (evale x)) (tryBool (evale y)) )
-
-    Or x y ->
-      wrapBool ( tryBinFn (||) (tryBool (evale x)) (tryBool (evale y)) )
+        Or ->
+          wrapBool ( tryBinFn (||) (tryBool (evale x)) (tryBool (evale y)) )
 
     -- Lambda gets evaluated to a closure.
     Lam x y -> Just (VFun e x y)

@@ -10,10 +10,19 @@ type TokTSC = TTSCInt TokTSCInt | TTSCBool TokTSCBool
 type TokTSCInt = TokPlus | TokMinus | TokTimes
 type TokTSCBool = TokEq | TokAnd | TokOr
 
+{-
 type Const = CBool Bool | CInt Int
 type Term = CTerm Const | VTerm String | Plus Term Term | Minus Term Term | Times Term Term
             | Eq Term Term | And Term Term | Or Term Term | Lam String Term | App Term Term
             | MissingInt | MissingBool | Missing | EmptyTree
+-}
+
+type BinOp = Plus | Minus | Times | Eq | And | Or
+
+type Const = CBool Bool | CInt Int
+
+type Term = CTerm Const | VTerm String | BinTerm BinOp Term Term
+            | Lam String Term | App Term Term | Missing | EmptyTree
 
 {- 
   V(alue)Type is a type that a TreeAssembly term can evaluate to
@@ -28,6 +37,7 @@ type alias Var =
 {-
   Returns the type signature of basic language constructs (only used for binary operators)
 -}
+{-
 getTypeSignature : Term -> Maybe VType
 getTypeSignature t =
   case t of
@@ -41,7 +51,7 @@ getTypeSignature t =
     Or x y -> Just (TFun TBool (TFun TBool TBool))
     Lam x y -> Nothing --Need to work on this.
     App x y -> Nothing --Might have to change this later on
-    _ -> Nothing
+    _ -> Nothing-}
 
 {-
   Converts a list of VTypes to a nested VType in the form VFun VType VType

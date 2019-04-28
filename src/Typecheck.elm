@@ -1,7 +1,7 @@
 module Typecheck exposing (CheckResult(..), typeToString, checkResultToString, typecheck)
 import List exposing (..)
 import List.Extra exposing (elemIndex, getAt)
-import Types exposing (Const(..), Term(..), VType(..), getTypeSignature, listToTypeSign, typeSignToList)
+import Types exposing (Const(..), BinOp(..), Term(..), VType(..), listToTypeSign, typeSignToList)
 import Environment exposing (Env, lookup, lookupType, lookupName, extend, addOrModify)
 
 
@@ -106,7 +106,7 @@ checkSig sig args =
 {-
   Returns the types of the arguments to the binary operations for type checking.
 -}
-getTypeArgs : Env -> Term -> List CheckResult
+{-getTypeArgs : Env -> Term -> List CheckResult
 getTypeArgs env t =
   let check = typecheck env in
     case t of
@@ -116,7 +116,7 @@ getTypeArgs env t =
       Eq x y    -> (check x) :: (check y) :: []
       And x y   -> (check x) :: (check y) :: []
       Or x y    -> (check x) :: (check y) :: []
-      _         -> []
+      _         -> []-}
 
 {-
   Inserts a lambda's argument into the environment (takes into account nested lambdas).
@@ -127,9 +127,102 @@ insertArgs env t =
     Lam a b -> insertArgs (extend env (a, EmptyTree, TInt)) b --Defaults to int
     _ -> env
 
+
+andThen : (VType -> CheckResult) -> CheckResult -> CheckResult
+andThen fn result =
+  case result of
+    Checks t1 ->
+      fn t1
+    
+    Partial t1 ->
+      case fn t1 of
+        Checks t2 -> Partial t2
+        _         -> fn t1
+    
+    Fails _ _ _ out ->
+      case fn out of
+        Checks t2 -> Partial t2
+        _         -> fn out
+
+    Invalid -> Invalid
+
+
+andThen2 : (VType -> VType -> CheckResult) -> CheckResult -> CheckResult -> CheckResult
+andThen2 fn res1 res2 =
+  case res1 of
+    Checks t1 ->
+      andThen (fn t1) res2
+
+    Partial t1 ->
+      case andThen (fn t1) res2 of
+        Checks t2 -> Partial t2
+        _         -> andThen (fn t1) res2
+
+    Fails _ _ _ out ->
+      case andThen (fn out) res2 of
+        Checks t2 -> Partial t2
+        _         -> andThen (fn out) res2
+    
+    Invalid -> Invalid
+
+
+checkBinOp : Env -> BinOp -> VType -> VType -> CheckResult
+checkBinOp env op t1 t2 =
+  let
+    operandType =
+      case op of
+        Plus -> TInt
+        Minus -> TInt
+        Times -> TInt
+        Eq -> TInt
+        And -> TBool
+        Or -> TBool
+
+    resultType =
+      case op of
+        Plus -> TInt
+        Minus -> TInt
+        Times -> TInt
+        Eq -> TBool
+        And -> TBool
+        Or -> TBool
+  in
+    if t1 == operandType then
+      if t2 == operandType then
+        Checks resultType
+      else
+        Fails 2 operandType t2 resultType
+    else
+      Fails 1 operandType t1 resultType
+    
+
+typecheck : Env -> Term -> CheckResult
+typecheck env t =
+  case t of
+    CTerm c ->
+      case c of
+        CInt _  -> Checks TInt
+        CBool _ -> Checks TBool
+
+    BinTerm op t1 t2 ->
+      let
+        type1 = typecheck env t1
+        type2 = typecheck env t2
+      in
+        andThen2 (\ty1 ty2 -> checkBinOp env op ty1 ty2) type1 type2
+    
+    VTerm v ->
+      case lookup env v of
+        Just sub -> typecheck env sub
+        Nothing  -> Invalid
+    
+    _ -> Invalid
+
+
 {-
   Uses checkSig for everything except VTerm, Lam, and App.
 -}
+{-
 typecheck : Env -> Term -> CheckResult
 typecheck env t =
   let
@@ -152,12 +245,14 @@ typecheck env t =
 
       App x y -> typecheckApp env t
       _ -> checkSig sig args
+-}
 
 {-
   Insert the arguments into the environment, look up the annotated type of this function,
   and assume this type is correct. This is a temporary feature. More work needs to be done
   here and it will probably imply implementing type inference.
 -}
+{-
 typecheckLam : Env -> Term -> CheckResult
 typecheckLam env t =
   case t of
@@ -172,11 +267,13 @@ typecheckLam env t =
               Nothing -> Invalid
           Nothing -> Invalid
     _ -> Invalid -- Shouldn't be reached
+-}
 
 
 {-
   This function works the same as before except we use the environment directly rather than using substitution.
 -}
+{-
 typecheckApp : Env -> Term -> CheckResult
 typecheckApp env t =
   case t of
@@ -200,3 +297,4 @@ typecheckApp env t =
               _ -> Invalid
         _ -> Invalid
     _ -> Invalid --Shouldn't be reached
+-}
