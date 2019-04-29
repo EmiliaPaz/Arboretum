@@ -20,6 +20,7 @@ const Assignment = tokenVocabulary.Assignment
 const Addition = tokenVocabulary.Addition
 const Subtraction = tokenVocabulary.Subtraction
 const Multiplication = tokenVocabulary.Multiplication
+const Modulus = tokenVocabulary.Modulus
 const LogicalOR = tokenVocabulary.LogicalOR
 const LogicalAND = tokenVocabulary.LogicalAND
 const LParen = tokenVocabulary.LParen
@@ -37,8 +38,8 @@ class ScriptParser extends Parser {
 
         $.RULE("statement", () => {
             $.OR([
-                { ALT: () => { $.SUBRULE($.typeStatement) }}, 
-                { ALT: () => { $.SUBRULE($.assignmentStatement) }}, 
+                { ALT: () => { $.SUBRULE($.typeStatement) }},
+                { ALT: () => { $.SUBRULE($.assignmentStatement) }},
             ])
         })
 
@@ -62,10 +63,10 @@ class ScriptParser extends Parser {
                     $.CONSUME(LParen)
                     $.SUBRULE($.type)
                     $.CONSUME(RParen)
-                }}, 
-                { ALT: () => { $.CONSUME(BasicType) }}, 
+                }},
+                { ALT: () => { $.CONSUME(BasicType) }},
             ])
-            
+
         })
 
         $.RULE("assignmentStatement", () => {
@@ -77,7 +78,7 @@ class ScriptParser extends Parser {
         $.RULE("expression", () => {
             $.SUBRULE($.fnExpression)
         })
-        
+
         $.RULE("fnExpression", () => {
             $.OR([
                 { ALT: () => {
@@ -85,8 +86,8 @@ class ScriptParser extends Parser {
                     $.CONSUME(Identifier)
                     $.CONSUME(Arrow)
                     $.SUBRULE($.eqExpression)
-                }}, 
-                { ALT: () => { $.SUBRULE2($.eqExpression) }}, 
+                }},
+                { ALT: () => { $.SUBRULE2($.eqExpression) }},
             ])
         })
 
@@ -105,6 +106,7 @@ class ScriptParser extends Parser {
                 $.SUBRULE2($.andExpression)
             })
         })
+
         $.RULE("andExpression", () => {
             $.SUBRULE($.subtExpression)
             $.MANY( () => {
@@ -130,9 +132,17 @@ class ScriptParser extends Parser {
         })
 
         $.RULE("multExpression", () => {
-            $.SUBRULE($.appExpression)
+            $.SUBRULE($.modExpression)
             $.MANY( () => {
                 $.CONSUME(Multiplication)
+                $.SUBRULE2($.modExpression)
+            })
+        })
+
+        $.RULE("modExpression", () => {
+            $.SUBRULE($.appExpression)
+            $.MANY( () => {
+                $.CONSUME(Modulus)
                 $.SUBRULE2($.appExpression)
             })
         })

@@ -246,6 +246,7 @@ exprSwitch s =
     "ADD_EXPR" -> addDecoder
     "SUBT_EXPR" -> subtDecoder
     "MULT_EXPR" -> multDecoder
+    "MOD_EXPR" -> modDecoder
     "AND_EXPR" -> andDecoder
     "OR_EXPR" -> orDecoder
     "EQ_EXPR" -> eqDecoder
@@ -270,7 +271,6 @@ binDecoder comb =
           _ ->
             Decode.fail "binary expression has fewer than 2 children"
       )
-
 
 {-
 This function needs at least one item in list to return a Term; the Elm
@@ -298,6 +298,7 @@ binCombinerRight comb first ts =
 addDecoder = binDecoder (\t1 t2 -> Plus t1 t2)
 subtDecoder = binDecoder (\t1 t2 -> Minus t1 t2)
 multDecoder = binDecoder (\t1 t2 -> Times t1 t2)
+modDecoder = binDecoder (\t1 t2 -> Mod t1 t2)
 andDecoder = binDecoder (\t1 t2 -> And t1 t2)
 orDecoder = binDecoder (\t1 t2 -> Or t1 t2)
 appDecoder = binDecoder (\t1 t2 -> App t1 t2)
@@ -416,6 +417,7 @@ listSubterms t =
     Plus x y ->  [x, y]
     Minus x y -> [x, y]
     Times x y -> [x, y]
+    Mod x y   -> [x, y]
     Eq x y ->    [x, y]
     And x y ->   [x, y]
     Or x y ->    [x, y]
@@ -477,17 +479,18 @@ renderTermInline result t =
         _         -> True
     opStr =
       case t of
-        CTerm _   -> ""
-        VTerm _   -> ""
-        Plus _ _  -> "+"
-        Minus _ _ -> "-"
-        Times _ _ -> "*"
-        Eq _ _    -> "=="
-        And _ _   -> "&&"
-        Or _ _    -> "||"
-        Lam _ _   -> "->"
-        App _ _   -> " "
-        _         -> ""
+        CTerm _        -> ""
+        VTerm _        -> ""
+        Plus _ _       -> "+"
+        Minus _ _      -> "-"
+        Times _ _      -> "*"
+        Mod _ _        -> "%"
+        Eq _ _         -> "=="
+        And _ _        -> "&&"
+        Or _ _         -> "||"
+        Lam _ _        -> "->"
+        App _ _        -> " "
+        _              -> ""
 
     subterms = renderSubterms argTerms result
   in
@@ -561,6 +564,7 @@ genRenderTree depth e t =
         Plus x y  -> [gTree x, gTree y]
         Minus x y -> [gTree x, gTree y]
         Times x y -> [gTree x, gTree y]
+        Mod x y   -> [gTree x, gTree y]
         Eq x y    -> [gTree x, gTree y]
         And x y   -> [gTree x, gTree y]
         Or x y    -> [gTree x, gTree y]
