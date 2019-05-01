@@ -47,7 +47,25 @@ suite =
             Plus (CTerm (CInt 5)) (CTerm (CInt 3))
               |> eval env
               |> Expect.equal (Just (VInt 8))
-      
+
+      , test "division" <|
+        \_ ->
+          let
+            env = []
+          in
+            Div (CTerm (CInt 5)) (CTerm (CInt 3))
+              |> eval env
+              |> Expect.equal (Just (VInt 1))
+
+      , test "modulus" <|
+        \_ ->
+          let
+            env = []
+          in
+            Div (CTerm (CInt 22)) (CTerm (CInt 4))
+              |> eval env
+              |> Expect.equal (Just (VInt 2))
+
       , test "or" <|
         \_ ->
           let
@@ -74,7 +92,7 @@ suite =
             VTerm "x"
               |> eval env
               |> Expect.equal (Just (VInt 9))
-              
+
        , test "lambdas evaluate to closures" <|
         \_ ->
           let
@@ -83,7 +101,7 @@ suite =
             Lam "x" (Plus (VTerm "x") (CTerm (CInt 2)))
               |> eval env
               |> Expect.equal (Just (VFun env "x" (Plus (VTerm "x") (CTerm (CInt 2)))))
-              
+
         , test "applications evaluate with environment" <|
         \_ ->
           let
