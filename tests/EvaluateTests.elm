@@ -62,7 +62,7 @@ suite =
           let
             env = []
           in
-            Div (CTerm (CInt 22)) (CTerm (CInt 4))
+            Mod (CTerm (CInt 22)) (CTerm (CInt 4))
               |> eval env
               |> Expect.equal (Just (VInt 2))
 
