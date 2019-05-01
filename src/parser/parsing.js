@@ -20,6 +20,7 @@ const Assignment = tokenVocabulary.Assignment
 const Addition = tokenVocabulary.Addition
 const Subtraction = tokenVocabulary.Subtraction
 const Multiplication = tokenVocabulary.Multiplication
+const Division = tokenVocabulary.Division
 const Modulus = tokenVocabulary.Modulus
 const LogicalOR = tokenVocabulary.LogicalOR
 const LogicalAND = tokenVocabulary.LogicalAND
@@ -132,9 +133,17 @@ class ScriptParser extends Parser {
         })
 
         $.RULE("multExpression", () => {
-            $.SUBRULE($.modExpression)
+            $.SUBRULE($.divExpression)
             $.MANY( () => {
                 $.CONSUME(Multiplication)
+                $.SUBRULE2($.divExpression)
+            })
+        })
+
+        $.RULE("divExpression", () => {
+            $.SUBRULE($.modExpression)
+            $.MANY( () => {
+                $.CONSUME(Division)
                 $.SUBRULE2($.modExpression)
             })
         })
