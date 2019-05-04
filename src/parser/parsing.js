@@ -24,6 +24,7 @@ const LogicalOR = tokenVocabulary.LogicalOR
 const LogicalAND = tokenVocabulary.LogicalAND
 const LParen = tokenVocabulary.LParen
 const RParen = tokenVocabulary.RParen
+const Comma = tokenVocabulary.Comma
 
 // ----------------- parser -----------------
 class ScriptParser extends Parser {
@@ -37,8 +38,8 @@ class ScriptParser extends Parser {
 
         $.RULE("statement", () => {
             $.OR([
-                { ALT: () => { $.SUBRULE($.typeStatement) }}, 
-                { ALT: () => { $.SUBRULE($.assignmentStatement) }}, 
+                { ALT: () => { $.SUBRULE($.typeStatement) }},
+                { ALT: () => { $.SUBRULE($.assignmentStatement) }},
             ])
         })
 
@@ -62,10 +63,10 @@ class ScriptParser extends Parser {
                     $.CONSUME(LParen)
                     $.SUBRULE($.type)
                     $.CONSUME(RParen)
-                }}, 
-                { ALT: () => { $.CONSUME(BasicType) }}, 
+                }},
+                { ALT: () => { $.CONSUME(BasicType) }},
             ])
-            
+
         })
 
         $.RULE("assignmentStatement", () => {
@@ -77,7 +78,7 @@ class ScriptParser extends Parser {
         $.RULE("expression", () => {
             $.SUBRULE($.fnExpression)
         })
-        
+
         $.RULE("fnExpression", () => {
             $.OR([
                 { ALT: () => {
@@ -85,8 +86,8 @@ class ScriptParser extends Parser {
                     $.CONSUME(Identifier)
                     $.CONSUME(Arrow)
                     $.SUBRULE($.eqExpression)
-                }}, 
-                { ALT: () => { $.SUBRULE2($.eqExpression) }}, 
+                }},
+                { ALT: () => { $.SUBRULE2($.eqExpression) }},
             ])
         })
 
@@ -144,17 +145,46 @@ class ScriptParser extends Parser {
             })
         })
 
+        // $.RULE("atomicExpression", () => {
+        //     $.OR([
+        //         { ALT: () => {
+        //             $.CONSUME(LParen)
+        //             $.SUBRULE($.expression)
+        //             $.CONSUME(Comma)
+        //             $.SUBRULE2($.expression)
+        //             $.CONSUME(RParen)
+        //         }},
+        //         { ALT: () => {
+        //             $.CONSUME2(LParen)
+        //             $.SUBRULE3($.expression)
+        //             $.CONSUME2(RParen)
+        //         }},
+        //         { ALT: () => $.CONSUME(Integer) },
+        //         { ALT: () => $.CONSUME(Boolean) },
+        //         { ALT: () => $.CONSUME(Identifier) },
+
+        //     ])
+        // })
+
         $.RULE("atomicExpression", () => {
             $.OR([
                 { ALT: () => {
                     $.CONSUME(LParen)
-                    $.SUBRULE($.expression)
+                    $.SUBRULE($.tuple)
                     $.CONSUME(RParen)
                 }},
                 { ALT: () => $.CONSUME(Integer) },
                 { ALT: () => $.CONSUME(Boolean) },
-                { ALT: () => $.CONSUME(Identifier) }
+                { ALT: () => $.CONSUME(Identifier) },
             ])
+        })
+
+        $.RULE("tuple", () => {
+            $.SUBRULE($.expression)
+            .OPTION(() => {
+                $.CONSUME(Comma)
+                $.SUBRULE2($.expression)
+            })
         })
 
 

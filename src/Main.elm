@@ -81,6 +81,13 @@ update msg model =
         Ok ts ->
           let
             env = joinTermsWithTypes ts
+            -- env =  joinTermsWithTypes [("c",Left (CTerm (CInt 1))), 
+            --                           ("f",Left(Plus (CTerm (CInt 10)) (CTerm(CBool True)))), 
+            --                           ("p",Left(Plus (VTerm "f") (VTerm "f"))),
+            --                           ("l",Left(Lam "a" (Plus (VTerm "a") (CTerm (CInt 1))))), 
+            --                           ("i",Left(App (VTerm "a") (VTerm "c"))), 
+            --                           ("j",Left(Tuple (VTerm "p") (VTerm "p")))
+            --                           ]
             vs = envToVars env
             ris = genRenderInfos 3 vs
           in
@@ -253,6 +260,7 @@ exprSwitch s =
     "EQ_EXPR" -> eqDecoder
     "FN_EXPR" -> fnDecoder
     "APP_EXPR" -> appDecoder
+    "TUPLE" -> tupleDecoder
     _      -> Decode.fail ("unrecognized type: " ++ s)
 
 fnDecoder : Decoder Term
@@ -329,6 +337,12 @@ idDecoder =
   field "value" string
     |> Decode.andThen
       (\i -> Decode.succeed (VTerm i))
+
+tupleDecoder : Decoder Term
+tupleDecoder =
+  Decode.map2 (\l r -> Tuple l r )
+    (field "left" exprDecoder)
+    (field "right" exprDecoder)
 
 -- VIEW
 
