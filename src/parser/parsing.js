@@ -200,7 +200,7 @@ class ScriptParser extends Parser {
 
         $.RULE("tuple", () => {
             $.SUBRULE($.expression)
-            .OPTION(() => {
+            $.OPTION(() => {
                 $.CONSUME(Comma)
                 $.SUBRULE2($.expression)
             })

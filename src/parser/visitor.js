@@ -266,9 +266,9 @@ class ToAstVisitor extends BaseScriptVisitor {
     }
 
     tuple(ctx) {
-        const left = this.visit(ctx.expression)
+        const left = this.visit(ctx.expression[0])
         if(ctx.Comma) {    
-            const right = this.visit(ctx.expression)
+            const right = this.visit(ctx.expression[1])
             return {
                 type: "TUPLE",
                 left: left,
