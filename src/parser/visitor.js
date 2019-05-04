@@ -187,12 +187,38 @@ class ToAstVisitor extends BaseScriptVisitor {
             return this.visit(ctx.multExpression)
         }
     }
-    
+
     multExpression(ctx) {
+        if(ctx.divExpression.length > 1) {
+            const children = ctx.divExpression.map(node => this.visit(node))
+            return {
+                type: "MULT_EXPR",
+                children: children,
+            }
+        }
+        else {
+            return this.visit(ctx.divExpression)
+        }
+    }
+
+    divExpression(ctx) {
+        if(ctx.modExpression.length > 1) {
+            const children = ctx.modExpression.map(node => this.visit(node))
+            return {
+                type: "DIV_EXPR",
+                children: children,
+            }
+        }
+        else {
+            return this.visit(ctx.modExpression)
+        }
+    }
+
+    modExpression(ctx) {
         if(ctx.appExpression.length > 1) {
             const children = ctx.appExpression.map(node => this.visit(node))
             return {
-                type: "MULT_EXPR",
+                type: "MOD_EXPR",
                 children: children,
             }
         }

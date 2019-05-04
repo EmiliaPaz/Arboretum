@@ -114,6 +114,8 @@ getTypeArgs env t =
       Plus x y  -> (check x) :: (check y) :: []
       Minus x y -> (check x) :: (check y) :: []
       Times x y -> (check x) :: (check y) :: []
+      Div x y   -> (check x) :: (check y) :: []
+      Mod x y   -> (check x) :: (check y) :: []
       Eq x y    -> (check x) :: (check y) :: []
       And x y   -> (check x) :: (check y) :: []
       Or x y    -> (check x) :: (check y) :: []

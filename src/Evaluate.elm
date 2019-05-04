@@ -48,6 +48,12 @@ termToString t =
     Times t1 t2 ->
       "(" ++ (termToString t1) ++ " * " ++ (termToString t2) ++ ")"
 
+    Div t1 t2 ->
+      "(" ++ (termToString t1) ++ " / " ++ (termToString t2) ++ ")"
+
+    Mod t1 t2 ->
+      "(" ++ (termToString t1) ++ " % " ++ (termToString t2) ++ ")"
+
     Eq t1 t2 ->
       "(" ++ (termToString t1) ++ " == " ++ (termToString t2) ++ ")"
 
@@ -143,6 +149,12 @@ eval e t =
 
     Times x y ->
       wrapInt ( tryBinFn (*) (tryInt (evale x)) (tryInt (evale y)) )
+
+    Div x y ->
+      wrapInt ( tryBinFn (//) (tryInt (evale x)) (tryInt (evale y)) )
+
+    Mod x y ->
+      wrapInt ( tryBinFn (modBy) (tryInt (evale y)) (tryInt (evale x)) )
 
     Eq x y ->
       takeOne
