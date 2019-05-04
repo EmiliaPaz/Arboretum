@@ -426,6 +426,7 @@ listSubterms t =
     Or x y ->    [x, y]
     Lam x y ->   [VTerm ("\\" ++ x), y]
     App x y ->   [x, y]
+    Tuple x y -> [x, y]
     _ ->         []
 
 renderSubtermsRec : Int -> List Term -> CheckResult -> List (Html Msg)
@@ -494,7 +495,9 @@ renderTermInline result t =
         Or _ _         -> "||"
         Lam _ _        -> "->"
         App _ _        -> " "
+        Tuple _ _ -> ","
         _              -> ""
+
 
     subterms = renderSubterms argTerms result
   in
@@ -502,7 +505,10 @@ renderTermInline result t =
       True ->
         case subterms of
           x :: xs ->
-            span [] ([x, text (" " ++ opStr)] ++ xs)
+            case t of 
+              Tuple _ _ -> span [] ([text ("(")] ++ [x, text (" " ++ opStr)] ++ xs ++ [text (")")]) 
+              _         -> span [] ([x, text (" " ++ opStr)] ++ xs)
+            
           _ ->
             text "rendering error"
       False ->
@@ -575,6 +581,7 @@ genRenderTree depth e t =
         Or x y    -> [gTree x, gTree y]
         -- Lam x y   -> [gTree (VTerm (x)), gTree y]
         App x y   -> [gTree x, gTree y]
+        Tuple x y -> [gTree x, gTree y]
         _         -> []
 
     n =

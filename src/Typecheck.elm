@@ -11,6 +11,7 @@ typeToString t =
   case t of
     TBool -> "Bool"
     TInt  -> "Int"
+    TTuple a b -> "Tuple" ++ " " ++ (typeToString a) ++ " " ++ (typeToString b)
     TFun a b -> (typeToString a) ++ " -> " ++ (typeToString b)
 
 {-
@@ -153,6 +154,25 @@ typecheck env t =
         typecheckLam env t
 
       App x y -> typecheckApp env t
+
+      Tuple m n ->
+        case (typecheck env m, typecheck env n) of
+          -- Checks a
+          (Checks a, Checks x)            -> Checks (TTuple a x)
+          (Checks a, Fails w x y z)       -> Fails 2 (TTuple a x) (TTuple a y) (TTuple a z)
+          (Checks a, Partial x)           -> Partial (TTuple a x)
+          -- Fails a
+          (Fails a b c d, Checks x)       -> Fails 1 (TTuple b x) (TTuple c x) (TTuple d x)
+          (Fails a b c d, Fails w x y z)  -> Fails 1 (TTuple b x) (TTuple c y) (TTuple d z)  -- should put red on both terms (c,y)
+          (Fails a b c d, Partial x)      -> Fails 1 (TTuple b x) (TTuple c x) (TTuple d x)
+          -- Partial a
+          (Partial a, Checks x)           -> Partial (TTuple a x)
+          (Partial a, Fails w x y z)      -> Fails 2 (TTuple a x) (TTuple a y) (TTuple a z)
+          (Partial a, Partial x)           -> Partial (TTuple a x)
+          -- Invalid a or x
+          (Invalid, _)                    -> Invalid
+          (_, Invalid)                    -> Invalid
+          
       _ -> checkSig sig args
 
 {-

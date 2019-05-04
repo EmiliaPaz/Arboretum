@@ -13,12 +13,12 @@ type TokTSCBool = TokEq | TokAnd | TokOr
 type Const = CBool Bool | CInt Int
 type Term = CTerm Const | VTerm String | Plus Term Term | Minus Term Term | Times Term Term
               | Div Term Term | Mod Term Term | Eq Term Term | And Term Term | Or Term Term
-              | Lam String Term | App Term Term | MissingInt | MissingBool | Missing | EmptyTree
+              | Lam String Term | App Term Term |  Tuple Term Term | MissingInt | MissingBool | Missing | EmptyTree
 
 {-
   V(alue)Type is a type that a TreeAssembly term can evaluate to
 -}
-type VType = TBool | TInt | TFun VType VType
+type VType = TBool | TInt | TFun VType VType | TTuple VType VType
 
 type alias Var =
   { name: String
@@ -73,6 +73,7 @@ listToTypeSign types =
 typeSignToList : VType -> List VType
 typeSignToList vt =
   case vt of
-    TBool -> [TBool]
-    TInt -> [TInt]
-    TFun vt1 vt2 -> (typeSignToList vt1) ++ (typeSignToList vt2)
+    TBool           -> [TBool]
+    TInt            -> [TInt]
+    TFun vt1 vt2    -> (typeSignToList vt1) ++ (typeSignToList vt2)
+    TTuple vt1 vt2  -> [TTuple vt1 vt2 ]
