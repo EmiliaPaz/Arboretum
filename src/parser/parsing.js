@@ -164,27 +164,6 @@ class ScriptParser extends Parser {
             })
         })
 
-        // $.RULE("atomicExpression", () => {
-        //     $.OR([
-        //         { ALT: () => {
-        //             $.CONSUME(LParen)
-        //             $.SUBRULE($.expression)
-        //             $.CONSUME(Comma)
-        //             $.SUBRULE2($.expression)
-        //             $.CONSUME(RParen)
-        //         }},
-        //         { ALT: () => {
-        //             $.CONSUME2(LParen)
-        //             $.SUBRULE3($.expression)
-        //             $.CONSUME2(RParen)
-        //         }},
-        //         { ALT: () => $.CONSUME(Integer) },
-        //         { ALT: () => $.CONSUME(Boolean) },
-        //         { ALT: () => $.CONSUME(Identifier) },
-
-        //     ])
-        // })
-
         $.RULE("atomicExpression", () => {
             $.OR([
                 { ALT: () => {
