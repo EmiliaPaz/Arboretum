@@ -12,10 +12,10 @@ type TokTSCBool = TokEq | TokAnd | TokOr
 
 type Const = CBool Bool | CInt Int
 type Term = CTerm Const | VTerm String | Plus Term Term | Minus Term Term | Times Term Term
-            | Eq Term Term | And Term Term | Or Term Term | Lam String Term | App Term Term
-            | MissingInt | MissingBool | Missing | EmptyTree | Tuple Term Term
+              | Div Term Term | Mod Term Term | Eq Term Term | And Term Term | Or Term Term
+              | Lam String Term | App Term Term |  Tuple Term Term | MissingInt | MissingBool | Missing | EmptyTree
 
-{- 
+{-
   V(alue)Type is a type that a TreeAssembly term can evaluate to
 -}
 type VType = TBool | TInt | TFun VType VType | TTuple VType VType
@@ -36,6 +36,8 @@ getTypeSignature t =
     Plus x y -> Just (TFun TInt (TFun TInt TInt))
     Minus x y -> Just (TFun TInt (TFun TInt TInt))
     Times x y -> Just (TFun TInt (TFun TInt TInt))
+    Div x y -> Just (TFun TInt (TFun TInt TInt))
+    Mod x y -> Just (TFun TInt (TFun TInt TInt))
     Eq x y -> Just (TFun TInt (TFun TInt TBool))
     And x y -> Just (TFun TBool (TFun TBool TBool))
     Or x y -> Just (TFun TBool (TFun TBool TBool))
@@ -74,4 +76,4 @@ typeSignToList vt =
     TBool           -> [TBool]
     TInt            -> [TInt]
     TFun vt1 vt2    -> (typeSignToList vt1) ++ (typeSignToList vt2)
-    TTuple vt1 vt2  -> (typeSignToList vt1) ++ (typeSignToList vt2)   -- Will return the tuple as a list. Not ideal, but the function is type sign to list
+    TTuple vt1 vt2  -> [TTuple vt1 vt2 ]

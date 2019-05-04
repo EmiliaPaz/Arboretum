@@ -9,8 +9,6 @@ import Debug exposing (toString)
 import Json.Decode as Decode exposing (Decoder, field, bool, int, string)
 import String exposing (split)
 
-import Tokenizer
-import Parser
 import Environment exposing (Env, lookup, varsToEnv, envToVars, extend)
 import Evaluate
 import Types exposing (..)
@@ -75,7 +73,7 @@ update msg model =
         newRTs = filterUpdate (\x -> x.id == id) (\x -> {x | depth = x.depth - 1}) model.renderTreeInfos
       in
         ({model | renderTreeInfos = newRTs} , Cmd.none )
-    
+
     GotAsts r ->
       case r of
         Ok ts ->
@@ -109,7 +107,7 @@ joinTermsWithTypes ts =
                    Nothing        -> TInt
           in
             Just (n, term, ty)
-      
+
         _ -> Nothing
     ) ts
 
@@ -190,7 +188,7 @@ stmtDecoder =
           "ASSIGN_STMT" ->
             assignDecoder
               |> Decode.andThen (\(n, tm) -> Decode.succeed (n, Left tm))
-          
+
           _ ->
             Decode.fail ("Unrecognized statement type: " ++ t)
       )
@@ -236,7 +234,7 @@ basicTypeDecoder =
       )
 
 assignDecoder : Decoder (String, Term)
-assignDecoder = 
+assignDecoder =
   Decode.map2 (\id t -> (id, t))
     (field "identifier" string)
     (field "expression" exprDecoder)
@@ -255,6 +253,8 @@ exprSwitch s =
     "ADD_EXPR" -> addDecoder
     "SUBT_EXPR" -> subtDecoder
     "MULT_EXPR" -> multDecoder
+    "DIV_EXPR"  -> divDecoder
+    "MOD_EXPR" -> modDecoder
     "AND_EXPR" -> andDecoder
     "OR_EXPR" -> orDecoder
     "EQ_EXPR" -> eqDecoder
@@ -280,7 +280,6 @@ binDecoder comb =
           _ ->
             Decode.fail "binary expression has fewer than 2 children"
       )
-
 
 {-
 This function needs at least one item in list to return a Term; the Elm
@@ -308,6 +307,8 @@ binCombinerRight comb first ts =
 addDecoder = binDecoder (\t1 t2 -> Plus t1 t2)
 subtDecoder = binDecoder (\t1 t2 -> Minus t1 t2)
 multDecoder = binDecoder (\t1 t2 -> Times t1 t2)
+divDecoder = binDecoder (\t1 t2 -> Div t1 t2)
+modDecoder = binDecoder (\t1 t2 -> Mod t1 t2)
 andDecoder = binDecoder (\t1 t2 -> And t1 t2)
 orDecoder = binDecoder (\t1 t2 -> Or t1 t2)
 appDecoder = binDecoder (\t1 t2 -> App t1 t2)
@@ -377,11 +378,11 @@ view model =
     ]
  }
 
-printTknsLBL : List (List Token) -> List (Html Msg)
-printTknsLBL tkns =
-  case tkns of
-    []-> [div [class "tkns-div"] [text ""]]
-    (l::ls) -> [div [class "tkns-div"] [text (Tokenizer.tokenizePrint l)]] ++ (printTknsLBL ls)
+-- printTknsLBL : List (List Token) -> List (Html Msg)
+-- printTknsLBL tkns =
+--   case tkns of
+--     []-> [div [class "tkns-div"] [text ""]]
+--     (l::ls) -> [div [class "tkns-div"] [text (Tokenizer.tokenizePrint l)]] ++ (printTknsLBL ls)
 
 renderSummary : Env -> RenderTree -> Html Msg
 renderSummary envr (Node rNode _) =
@@ -432,6 +433,8 @@ listSubterms t =
     Plus x y ->  [x, y]
     Minus x y -> [x, y]
     Times x y -> [x, y]
+    Div x y   -> [x, y]
+    Mod x y   -> [x, y]
     Eq x y ->    [x, y]
     And x y ->   [x, y]
     Or x y ->    [x, y]
@@ -494,18 +497,21 @@ renderTermInline result t =
         _         -> True
     opStr =
       case t of
-        CTerm _   -> ""
-        VTerm _   -> ""
-        Plus _ _  -> "+"
-        Minus _ _ -> "-"
-        Times _ _ -> "*"
-        Eq _ _    -> "=="
-        And _ _   -> "&&"
-        Or _ _    -> "||"
-        Lam _ _   -> "->"
-        App _ _   -> " "
+        CTerm _        -> ""
+        VTerm _        -> ""
+        Plus _ _       -> "+"
+        Minus _ _      -> "-"
+        Times _ _      -> "*"
+        Div _ _        -> "/"
+        Mod _ _        -> "%"
+        Eq _ _         -> "=="
+        And _ _        -> "&&"
+        Or _ _         -> "||"
+        Lam _ _        -> "->"
+        App _ _        -> " "
         Tuple _ _ -> ","
-        _         -> ""
+        _              -> ""
+
 
     subterms = renderSubterms argTerms result
   in
@@ -582,6 +588,8 @@ genRenderTree depth e t =
         Plus x y  -> [gTree x, gTree y]
         Minus x y -> [gTree x, gTree y]
         Times x y -> [gTree x, gTree y]
+        Div x y   -> [gTree x, gTree y]
+        Mod x y   -> [gTree x, gTree y]
         Eq x y    -> [gTree x, gTree y]
         And x y   -> [gTree x, gTree y]
         Or x y    -> [gTree x, gTree y]

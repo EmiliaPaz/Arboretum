@@ -114,6 +114,8 @@ getTypeArgs env t =
       Plus x y  -> (check x) :: (check y) :: []
       Minus x y -> (check x) :: (check y) :: []
       Times x y -> (check x) :: (check y) :: []
+      Div x y   -> (check x) :: (check y) :: []
+      Mod x y   -> (check x) :: (check y) :: []
       Eq x y    -> (check x) :: (check y) :: []
       And x y   -> (check x) :: (check y) :: []
       Or x y    -> (check x) :: (check y) :: []
@@ -162,7 +164,11 @@ typecheck env t =
           (Checks a, Partial x)           -> Partial (TTuple a x)
           -- Fails a
           (Fails a b c d, Checks x)       -> Fails 1 (TTuple b x) (TTuple c x) (TTuple d x)
+<<<<<<< HEAD
           (Fails a b c d, Fails w x y z)  -> Fails 1 (TTuple b x) (TTuple c y) (TTuple d z)  -- should put on red both (c,y)
+=======
+          (Fails a b c d, Fails w x y z)  -> Fails 1 (TTuple b x) (TTuple c y) (TTuple d z)  -- should put red on both terms (c,y)
+>>>>>>> 88852597ab0cc8ccdd055b362376318ae3471016
           (Fails a b c d, Partial x)      -> Fails 1 (TTuple b x) (TTuple c x) (TTuple d x)
           -- Partial a
           (Partial a, Checks x)           -> Partial (TTuple a x)

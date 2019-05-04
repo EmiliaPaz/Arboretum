@@ -35,6 +35,8 @@ const Assignment = createToken({ name: "Assignment", pattern: /=/ })
 const Addition = createToken({name: "Addition", pattern: /\+/ })
 const Subtraction = createToken({name: "Subtraction", pattern: /-/ })
 const Multiplication = createToken({name: "Multiplication", pattern: /\*/ })
+const Division = createToken({name: "Division", pattern: /\//})
+const Modulus = createToken({name: "Modulus", pattern: /%/})
 
 const LogicalOR = createToken({name: "LogicalOR", pattern: /\|\|/ })
 const LogicalAND = createToken({name: "LogicalAND", pattern: /&&/ })
@@ -65,6 +67,8 @@ const allTokens = [
     Addition,
     Subtraction,
     Multiplication,
+    Division,
+    Modulus,
     LogicalOR,
     LogicalAND,
     LParen,
