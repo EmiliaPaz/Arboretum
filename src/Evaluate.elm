@@ -6,7 +6,7 @@ import Types exposing (..)
 import Environment exposing (Env, lookup, extend, addOrModify)
 
 -- Val is a value that a term can evaluate to
-type Val = VBool Bool | VInt Int | VFun Env String Term
+type Val = VBool Bool | VInt Int | VFun Env String Term | VTuple Val Val 
 
 boolToString : Bool -> String
 boolToString b =
@@ -18,10 +18,14 @@ boolToString b =
 valToString : Maybe Val -> String
 valToString v =
   case v of
-    Just (VBool x) -> boolToString x
-    Just (VInt x)  -> String.fromInt x
+    Just (VBool x)    -> boolToString x
+    Just (VInt x)     -> String.fromInt x
     Just (VFun e n t) ->  "\\" ++ n ++ " -> " ++ (termToString t)
-    Nothing        -> "Undefined"
+    Just (VTuple x y) -> 
+      let x2 = Just x
+          y2 = Just y
+      in "(" ++ (valToString x2) ++ "," ++ (valToString y2) ++ ")"
+    Nothing           -> "Undefined"
 
 
 termToString : Term -> String
@@ -112,6 +116,7 @@ valToTerm v =
     VBool b -> CTerm (CBool b)
     VInt i -> CTerm (CInt i)
     VFun e s t -> Lam s t
+    VTuple x y -> Tuple (valToTerm x) (valToTerm y)
 
 -- evaluates a term
 eval : Env -> Term -> Maybe Val
@@ -164,4 +169,10 @@ eval e t =
                 eval e2 b
             _ -> Nothing
         _ -> Nothing
+    
+    Tuple x y -> 
+          case (evale x, evale y) of
+            (Just x2, Just y2) -> Just (VTuple x2 y2)
+            _ -> Nothing
+
     _ -> Nothing
