@@ -68,6 +68,9 @@ termToString t =
 
     App t1 t2 ->
       "(" ++ (termToString t1) ++ (termToString t2) ++ ")"
+    
+    Tuple t1 t2 ->
+      "(" ++ (termToString t1) ++ "," ++ (termToString t2) ++ ")"
 
     _ -> ""
 

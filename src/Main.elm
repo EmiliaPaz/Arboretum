@@ -494,6 +494,7 @@ renderTermInline result t =
         CTerm _   -> False
         VTerm _   -> False
         EmptyTree -> False
+        Tuple _ _ -> False
         _         -> True
     opStr =
       case t of
@@ -511,8 +512,6 @@ renderTermInline result t =
         App _ _        -> " "
         Tuple _ _ -> ","
         _              -> ""
-
-
     subterms = renderSubterms argTerms result
   in
     case isOp of
@@ -520,7 +519,6 @@ renderTermInline result t =
         case subterms of
           x :: xs ->
             case t of 
-              Tuple _ _ -> span [] ([text ("(")] ++ [x, text (" " ++ opStr)] ++ xs ++ [text (")")]) 
               _         -> span [] ([x, text (" " ++ opStr)] ++ xs)
             
           _ ->

@@ -169,7 +169,7 @@ typecheck env t =
           -- Partial a
           (Partial a, Checks x)           -> Partial (TTuple a x)
           (Partial a, Fails w x y z)      -> Fails 2 (TTuple a x) (TTuple a y) (TTuple a z)
-          (Partial a, Partial x)           -> Partial (TTuple a x)
+          (Partial a, Partial x)          -> Partial (TTuple a x)
           -- Invalid a or x
           (Invalid, _)                    -> Invalid
           (_, Invalid)                    -> Invalid
