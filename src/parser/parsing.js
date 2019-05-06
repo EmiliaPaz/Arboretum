@@ -26,6 +26,7 @@ const LogicalOR = tokenVocabulary.LogicalOR
 const LogicalAND = tokenVocabulary.LogicalAND
 const LParen = tokenVocabulary.LParen
 const RParen = tokenVocabulary.RParen
+const Comma = tokenVocabulary.Comma
 
 // ----------------- parser -----------------
 class ScriptParser extends Parser {
@@ -167,13 +168,21 @@ class ScriptParser extends Parser {
             $.OR([
                 { ALT: () => {
                     $.CONSUME(LParen)
-                    $.SUBRULE($.expression)
+                    $.SUBRULE($.tuple)
                     $.CONSUME(RParen)
                 }},
                 { ALT: () => $.CONSUME(Integer) },
                 { ALT: () => $.CONSUME(Boolean) },
-                { ALT: () => $.CONSUME(Identifier) }
+                { ALT: () => $.CONSUME(Identifier) },
             ])
+        })
+
+        $.RULE("tuple", () => {
+            $.SUBRULE($.expression)
+            $.OPTION(() => {
+                $.CONSUME(Comma)
+                $.SUBRULE2($.expression)
+            })
         })
 
 

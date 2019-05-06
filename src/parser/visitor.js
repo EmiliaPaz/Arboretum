@@ -240,9 +240,10 @@ class ToAstVisitor extends BaseScriptVisitor {
         }
     }
 
+
     atomicExpression(ctx) {
-        if(ctx.expression) {
-            return this.visit(ctx.expression)
+        if(ctx.tuple) {
+            return this.visit(ctx.tuple)
         }
         else if(ctx.Integer) {
             return {
@@ -261,6 +262,21 @@ class ToAstVisitor extends BaseScriptVisitor {
                 type: "ID",
                 value: ctx.Identifier[0].image,
             }
+        }
+    }
+
+    tuple(ctx) {
+        const left = this.visit(ctx.expression[0])
+        if(ctx.Comma) {    
+            const right = this.visit(ctx.expression[1])
+            return {
+                type: "TUPLE",
+                left: left,
+                right: right, 
+            }
+        }
+        else {
+            return left
         }
     }
 

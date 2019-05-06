@@ -49,6 +49,8 @@ const WhiteSpace = createToken({
     group: Lexer.SKIPPED
 })
 
+const Comma = createToken({ name: "Comma", pattern: /,/ })
+
 // The order of tokens is important
 const allTokens = [
     WhiteSpace,
@@ -58,6 +60,7 @@ const allTokens = [
     Lambda,
     Arrow,
     TypeAssignment,
+    Comma,
     Integer,
     Equivalence,
     Assignment,

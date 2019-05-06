@@ -253,6 +253,7 @@ exprSwitch s =
     "EQ_EXPR" -> eqDecoder
     "FN_EXPR" -> fnDecoder
     "APP_EXPR" -> appDecoder
+    "TUPLE" -> tupleDecoder
     _      -> Decode.fail ("unrecognized type: " ++ s)
 
 fnDecoder : Decoder Term
@@ -330,6 +331,12 @@ idDecoder =
   field "value" string
     |> Decode.andThen
       (\i -> Decode.succeed (VTerm i))
+
+tupleDecoder : Decoder Term
+tupleDecoder =
+  Decode.map2 (\l r -> Tuple l r )
+    (field "left" exprDecoder)
+    (field "right" exprDecoder)
 
 -- VIEW
 
@@ -480,6 +487,7 @@ renderTermInline result t =
         CTerm _   -> False
         VTerm _   -> False
         EmptyTree -> False
+        Tuple _ _ -> False
         _         -> True
     opStr =
       case t of
@@ -497,8 +505,6 @@ renderTermInline result t =
         App _ _        -> " "
         Tuple _ _ -> ","
         _              -> ""
-
-
     subterms = renderSubterms argTerms result
   in
     case isOp of
@@ -506,7 +512,6 @@ renderTermInline result t =
         case subterms of
           x :: xs ->
             case t of 
-              Tuple _ _ -> span [] ([text ("(")] ++ [x, text (" " ++ opStr)] ++ xs ++ [text (")")]) 
               _         -> span [] ([x, text (" " ++ opStr)] ++ xs)
             
           _ ->

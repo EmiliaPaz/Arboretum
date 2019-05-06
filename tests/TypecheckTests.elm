@@ -30,6 +30,15 @@ suite =
               |> typecheck env
               |> Expect.equal (Checks TBool)
 
+      , test "const tuple(bool,int) checks to tuple(bool,int) type" <|
+        \_ ->
+          let
+            env = []
+          in
+            Tuple (CTerm (CBool True)) (CTerm (CInt 2))
+              |> typecheck env
+              |> Expect.equal (Checks (TTuple TBool TInt))
+
       , test "integer addition produces int type" <|
         \_ ->
           let

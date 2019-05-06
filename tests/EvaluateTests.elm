@@ -30,12 +30,31 @@ suite =
               |> eval env
               |> Expect.equal (Just (VBool False))
 
+      , test "const tuple checks to tuple" <|
+        \_ ->
+          let
+            env = []
+          in
+            Tuple (CTerm (CBool True)) (CTerm (CInt 2))
+              |> eval env
+              |> Expect.equal (Just (VTuple (VBool True) (VInt 2)))
+
       , test "adding an int and bool fails" <|
         \_ ->
           let
             env = []
           in
             Plus (CTerm (CBool False)) (CTerm (CInt 7))
+              |> eval env
+              |> Expect.equal Nothing
+
+
+      , test "adding an int and a tuple fails" <|
+        \_ ->
+          let
+            env = []
+          in
+            Plus (CTerm (CBool False)) (Tuple (CTerm (CBool True)) (CTerm (CInt 2)))
               |> eval env
               |> Expect.equal Nothing
 

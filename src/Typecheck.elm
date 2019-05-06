@@ -119,6 +119,7 @@ getTypeArgs env t =
       Eq x y    -> (check x) :: (check y) :: []
       And x y   -> (check x) :: (check y) :: []
       Or x y    -> (check x) :: (check y) :: []
+      Tuple x y -> (check x) :: (check y) :: []
       _         -> []
 
 {-
@@ -168,12 +169,14 @@ typecheck env t =
           -- Partial a
           (Partial a, Checks x)           -> Partial (TTuple a x)
           (Partial a, Fails w x y z)      -> Fails 2 (TTuple a x) (TTuple a y) (TTuple a z)
-          (Partial a, Partial x)           -> Partial (TTuple a x)
+          (Partial a, Partial x)          -> Partial (TTuple a x)
           -- Invalid a or x
           (Invalid, _)                    -> Invalid
           (_, Invalid)                    -> Invalid
           
       _ -> checkSig sig args
+
+
 
 {-
   Insert the arguments into the environment, look up the annotated type of this function,
