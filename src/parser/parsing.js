@@ -193,8 +193,6 @@ class ScriptParser extends Parser {
             })
         })
 
-  
-
         $.RULE("atomicExpression", () => {
             $.OR([
                 { ALT: () => {
