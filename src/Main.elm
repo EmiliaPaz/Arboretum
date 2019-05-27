@@ -14,7 +14,6 @@ import Evaluate
 import Types exposing (..)
 import Typecheck exposing (CheckResult(..), typecheck, checkResultToString, typeToString)
 
-
 -- MAIN
 main =
   Browser.document
@@ -261,6 +260,9 @@ exprSwitch s =
     "FN_EXPR" -> fnDecoder
     "APP_EXPR" -> appDecoder
     "TUPLE" -> tupleDecoder
+    "TUPLE_EXPR_FST" -> tupleExprFstDecoder
+    "TUPLE_EXPR_SND" -> tupleExprSndDecoder
+    -- "LIST" -> listDecoder
     _      -> Decode.fail ("unrecognized type: " ++ s)
 
 fnDecoder : Decoder Term
@@ -344,6 +346,41 @@ tupleDecoder =
   Decode.map2 (\l r -> Tuple l r )
     (field "left" exprDecoder)
     (field "right" exprDecoder)
+
+
+
+tupleExprFstDecoder : Decoder Term
+tupleExprFstDecoder = field "children" tupleExprFstDecoder2
+
+tupleExprFstDecoder2 : Decoder Term
+tupleExprFstDecoder2 = 
+    Decode.map2 (\l r -> Fst (Tuple l r))
+    (field "left" exprDecoder)
+    (field "right" exprDecoder)
+
+
+tupleExprSndDecoder : Decoder Term
+tupleExprSndDecoder = field "children" tupleExprSndDecoder2
+
+tupleExprSndDecoder2 : Decoder Term
+tupleExprSndDecoder2 = 
+    Decode.map2 (\l r -> Snd (Tuple l r))
+    (field "left" exprDecoder)
+    (field "right" exprDecoder)
+
+--------- PROBLEM: 
+-- 265|     "LIST" -> listDecoder
+--                    ^^^^^^^^^^^
+-- This `listDecoder` value is a:
+
+--     Decoder (List Term)
+
+-- But the type annotation on `exprSwitch` says it should be:
+
+--     Decoder Term
+
+-- listDecoder = let list = [] in Decode.map (\l -> [l]++list) (field "ls" exprDecoder)
+
 
 -- VIEW
 

@@ -214,16 +214,29 @@ class ToAstVisitor extends BaseScriptVisitor {
         }
     }
 
+    // modExpression(ctx) {
+    //     if(ctx.appExpression.length > 1) {
+    //         const children = ctx.appExpression.map(node => this.visit(node))
+    //         return {
+    //             type: "MOD_EXPR",
+    //             children: children,
+    //         }
+    //     }
+    //     else {
+    //         return this.visit(ctx.appExpression)
+    //     }
+    // }
+
     modExpression(ctx) {
-        if(ctx.appExpression.length > 1) {
-            const children = ctx.appExpression.map(node => this.visit(node))
+        if(ctx.tupleExpression.length > 1) {
+            const children = ctx.tupleExpression.map(node => this.visit(node))
             return {
                 type: "MOD_EXPR",
                 children: children,
             }
         }
         else {
-            return this.visit(ctx.appExpression)
+            return this.visit(ctx.tupleExpression)
         }
     }
 
@@ -263,6 +276,9 @@ class ToAstVisitor extends BaseScriptVisitor {
                 value: ctx.Identifier[0].image,
             }
         }
+        else if(ctx.list) {
+            return this.visit(ctx.list)
+        }
     }
 
     tuple(ctx) {
@@ -279,6 +295,41 @@ class ToAstVisitor extends BaseScriptVisitor {
             return left
         }
     }
+
+    tupleExpression(ctx){
+        if(ctx.First) {
+            const tuple = this.visit(ctx.tuple)
+            return {
+                type: "TUPLE_EXPR_FST",
+                children: tuple,
+            }
+        }
+        else if(ctx.Second) {
+            const tuple = this.visit(ctx.tuple)
+            return {
+                type: "TUPLE_EXPR_SND",
+                children: tuple,
+            }
+        }
+        else {
+            return this.visit(ctx.appExpression)
+        }
+    }
+
+    // list(ctx) {
+    //     const left = this.visit(ctx.expression[0])
+    //     if(ctx.Comma) {   
+    //         const ls = this.visit(ctx.expression) 
+    //         return {
+    //             type: "LIST",
+    //             children: ls
+    //         }
+    //     }
+    //     else {
+    //         return left
+    //     }
+        
+    // }
 
 }
 

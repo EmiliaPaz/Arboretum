@@ -27,6 +27,10 @@ const LogicalAND = tokenVocabulary.LogicalAND
 const LParen = tokenVocabulary.LParen
 const RParen = tokenVocabulary.RParen
 const Comma = tokenVocabulary.Comma
+const First = tokenVocabulary.First
+const Second = tokenVocabulary.Second
+const LBracket = tokenVocabulary.LBracket
+const RBracket = tokenVocabulary.RBracket
 
 // ----------------- parser -----------------
 class ScriptParser extends Parser {
@@ -149,12 +153,37 @@ class ScriptParser extends Parser {
             })
         })
 
+        // $.RULE("modExpression", () => {
+        //     $.SUBRULE($.appExpression)
+        //     $.MANY( () => {
+        //         $.CONSUME(Modulus)
+        //         $.SUBRULE2($.appExpression)
+        //     })
+        // })
+
+
+
         $.RULE("modExpression", () => {
-            $.SUBRULE($.appExpression)
+            $.SUBRULE($.tupleExpression)
             $.MANY( () => {
                 $.CONSUME(Modulus)
-                $.SUBRULE2($.appExpression)
+                $.SUBRULE2($.tupleExpression)
             })
+        })
+
+
+        $.RULE("tupleExpression", () => {
+            $.OR([
+                { ALT: () => {
+                    $.CONSUME(First)
+                    $.SUBRULE($.tuple)
+                }},
+                { ALT: () => {
+                    $.CONSUME(Second)
+                    $.SUBRULE2($.tuple)
+                }},
+                { ALT: () => { $.SUBRULE($.appExpression) }},
+            ])
         })
 
         $.RULE("appExpression", () => {
@@ -164,26 +193,7 @@ class ScriptParser extends Parser {
             })
         })
 
-        // $.RULE("atomicExpression", () => {
-        //     $.OR([
-        //         { ALT: () => {
-        //             $.CONSUME(LParen)
-        //             $.SUBRULE($.expression)
-        //             $.CONSUME(Comma)
-        //             $.SUBRULE2($.expression)
-        //             $.CONSUME(RParen)
-        //         }},
-        //         { ALT: () => {
-        //             $.CONSUME2(LParen)
-        //             $.SUBRULE3($.expression)
-        //             $.CONSUME2(RParen)
-        //         }},
-        //         { ALT: () => $.CONSUME(Integer) },
-        //         { ALT: () => $.CONSUME(Boolean) },
-        //         { ALT: () => $.CONSUME(Identifier) },
-
-        //     ])
-        // })
+  
 
         $.RULE("atomicExpression", () => {
             $.OR([
@@ -195,6 +205,11 @@ class ScriptParser extends Parser {
                 { ALT: () => $.CONSUME(Integer) },
                 { ALT: () => $.CONSUME(Boolean) },
                 { ALT: () => $.CONSUME(Identifier) },
+                // { ALT: () => {
+                //     $.CONSUME(LBracket)
+                //     $.SUBRULE($.list)
+                //     $.CONSUME(RBracket)
+                // }},
             ])
         })
 
@@ -205,6 +220,15 @@ class ScriptParser extends Parser {
                 $.SUBRULE2($.expression)
             })
         })
+
+        // $.RULE("list", () => {
+        //     $.SUBRULE($.expression)
+        //     $.OPTION(() => {
+        //         $.CONSUME(Comma)
+        //         $.SUBRULE2($.expression)
+        //     })
+        // })
+        
 
 
         // very important to call this after all the rules have been defined.

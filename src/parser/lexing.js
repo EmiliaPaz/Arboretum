@@ -50,11 +50,18 @@ const WhiteSpace = createToken({
 })
 
 const Comma = createToken({ name: "Comma", pattern: /,/ })
+const First = createToken({ name: "First", pattern: /fst/ })
+const Second = createToken({ name: "Second", pattern: /snd/ })
+
+const LBracket = createToken({ name: "LBracket", pattern: /\[/ })
+const RBracket = createToken({ name: "RBracket", pattern: /\]/ })
 
 // The order of tokens is important
 const allTokens = [
     WhiteSpace,
     Boolean,
+    First,
+    Second,
     BasicType,
     Identifier,
     Lambda,
@@ -72,7 +79,9 @@ const allTokens = [
     LogicalOR,
     LogicalAND,
     LParen,
-    RParen
+    RParen,
+    LBracket,
+    RBracket
 ]
 
 const TreeLexer = new Lexer(allTokens)
