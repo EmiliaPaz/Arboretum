@@ -1,14 +1,24 @@
+module Environment exposing (TypeEnv, TermEnv)
 
-module Environment exposing (Env, lookup, lookupType, lookupName, extend, varsToEnv, replaceType, replaceTerm, envToVars, addOrModify)
-
+import Dict exposing (Dict)
 import List exposing (map)
 import Types exposing (Term(..), Var, VType(..))
-type alias Env = List (String, Term, VType)
+
+type alias TermEnv = Dict String Term
+type alias TypeEnv = Dict String VType 
+
+{-type alias Env =
+  { terms : TermEnv
+  , types : CheckEnv
+  , annotations: TypeEnv
+  }-}
+
 
 {-
   Note: It might be useful combine lookup and lookupType into a single function.
 -}
 
+{-
 lookup : Env -> String -> Maybe Term
 lookup e s =
   case e of
@@ -113,3 +123,4 @@ envToVars env =
       case t of
         (a, b, c) -> [{name=a,term=b,vtype=c}] ++ envToVars ts
     _ -> []
+-}

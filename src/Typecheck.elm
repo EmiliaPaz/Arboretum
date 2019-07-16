@@ -1,8 +1,9 @@
 module Typecheck exposing (CheckResult(..), typeToString, checkResultToString, typecheck)
 import List exposing (..)
 import List.Extra exposing (elemIndex, getAt)
+import Dict exposing (Dict)
 import Types exposing (Const(..), BinOp(..), Term(..), VType(..), listToTypeSign, typeSignToList)
-import Environment exposing (Env, lookup, lookupType, lookupName, extend, addOrModify)
+import Environment exposing (TypeEnv)
 
 
 
@@ -25,6 +26,7 @@ Invalid : Typechecking failed with no useful diagnostic info
 -}
 type CheckResult = Checks VType | Fails Int VType VType VType | Partial VType | Invalid
 
+type alias CheckEnv = Dict String CheckResult
 
 checkResultToString : CheckResult -> String
 checkResultToString r =
@@ -121,11 +123,11 @@ getTypeArgs env t =
 {-
   Inserts a lambda's argument into the environment (takes into account nested lambdas).
 -}
-insertArgs : Env -> Term -> Env
+{-insertArgs : Env -> Term -> Env
 insertArgs env t =
   case t of
     Lam a b -> insertArgs (extend env (a, EmptyTree, TInt)) b --Defaults to int
-    _ -> env
+    _ -> env-}
 
 
 andThen : (VType -> CheckResult) -> CheckResult -> CheckResult
@@ -166,7 +168,7 @@ andThen2 fn res1 res2 =
     Invalid -> Invalid
 
 
-checkBinOp : Env -> BinOp -> VType -> VType -> CheckResult
+checkBinOp : TypeEnv -> BinOp -> VType -> VType -> CheckResult
 checkBinOp env op t1 t2 =
   let
     operandType =
@@ -196,7 +198,7 @@ checkBinOp env op t1 t2 =
       Fails 1 operandType t1 resultType
     
 
-typecheck : Env -> Term -> CheckResult
+typecheck : TypeEnv -> Term -> CheckResult
 typecheck env t =
   case t of
     CTerm c ->
@@ -212,9 +214,23 @@ typecheck env t =
         andThen2 (\ty1 ty2 -> checkBinOp env op ty1 ty2) type1 type2
     
     VTerm v ->
-      case lookup env v of
-        Just sub -> typecheck env sub
+      case Dict.get v env of
+        Just sub -> Checks sub
         Nothing  -> Invalid
+    
+    Lam name body ->
+      Invalid
+
+    App fn arg ->
+      case fn of
+        Lam name body ->
+          let
+            argType = typecheck env body
+          in 
+            andThen ( \ty -> typecheck (Dict.insert name ty env) body ) argType
+          
+        _ -> Invalid
+
     
     _ -> Invalid
 

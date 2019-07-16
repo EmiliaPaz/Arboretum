@@ -3,10 +3,11 @@ module Evaluate exposing (..)
 import List exposing (..)
 import List.Extra exposing (elemIndex, getAt)
 import Types exposing (..)
-import Environment exposing (Env, lookup, extend, addOrModify)
+import Environment exposing (TermEnv, TypeEnv)
+import Dict exposing (get)
 
 -- Val is a value that a term can evaluate to
-type Val = VBool Bool | VInt Int | VFun Env String Term
+type Val = VBool Bool | VInt Int | VFun TermEnv String Term
 
 boolToString : Bool -> String
 boolToString b =
@@ -116,7 +117,7 @@ valToTerm v =
     VFun e s t -> Lam s t
 
 -- evaluates a term
-eval : Env -> Term -> Maybe Val
+eval : TermEnv -> Term -> Maybe Val
 eval e t =
   let
     evale = eval e
@@ -128,7 +129,7 @@ eval e t =
         CBool x -> Just (VBool x)
 
     VTerm v ->
-      case lookup e v of
+      case get e t of
         Just subst -> evale subst
         Nothing    -> Nothing
     
@@ -158,14 +159,22 @@ eval e t =
     -- Lambda gets evaluated to a closure.
     Lam x y -> Just (VFun e x y)
 
+    App fn arg ->
+      case fn of
+        Lam name body ->
+
+
+
+
     --Same as before, except we use a closure rather than substitution.
-    App x y ->
+    {-App x y ->
       case evale x of
         Just (VFun e1 a b) ->
           case evale y of
             Just w ->
+              let e2 = insert 
               let e2 = addOrModify e1 (True, False) (a, valToTerm w, TInt) in
                 eval e2 b
             _ -> Nothing
         _ -> Nothing
-    _ -> Nothing
+    _ -> Nothing-}
