@@ -4,7 +4,7 @@ import List exposing (..)
 import List.Extra exposing (elemIndex, getAt)
 import Types exposing (..)
 import Environment exposing (TermEnv, TypeEnv)
-import Dict exposing (get)
+import Dict exposing (get, insert)
 
 -- Val is a value that a term can evaluate to
 type Val = VBool Bool | VInt Int | VFun TermEnv String Term
@@ -128,8 +128,8 @@ eval e t =
         CInt x  -> Just (VInt x)
         CBool x -> Just (VBool x)
 
-    VTerm v ->
-      case get e t of
+    VTerm name ->
+      case get name e of
         Just subst -> evale subst
         Nothing    -> Nothing
     
@@ -162,7 +162,17 @@ eval e t =
     App fn arg ->
       case fn of
         Lam name body ->
-
+          let e2 = insert name arg e in
+          eval e2 body
+        
+        _ ->
+          Nothing
+    
+    EmptyTree ->
+      Nothing
+    
+    Missing ->
+      Nothing
 
 
 

@@ -1,4 +1,4 @@
-module Typecheck exposing (CheckResult(..), typeToString, checkResultToString, typecheck)
+module Typecheck exposing (CheckResult(..), CheckEnv, typeToString, checkResultToString, typecheck)
 import List exposing (..)
 import List.Extra exposing (elemIndex, getAt)
 import Dict exposing (Dict)

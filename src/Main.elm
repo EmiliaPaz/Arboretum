@@ -8,11 +8,12 @@ import List exposing (map, filterMap, head, tail, reverse, filter)
 import Debug exposing (toString)
 import Json.Decode as Decode exposing (Decoder, field, bool, int, string)
 import String exposing (split)
+import Dict exposing (Dict)
 
-import Environment exposing (Env, lookup, varsToEnv, envToVars, extend)
+import Environment exposing (TypeEnv, TermEnv)
 import Evaluate
 import Types exposing (..)
-import Typecheck exposing (CheckResult(..), typecheck, checkResultToString, typeToString)
+import Typecheck exposing (CheckResult(..), CheckEnv, typecheck, checkResultToString, typeToString)
 
 
 -- MAIN
@@ -28,7 +29,9 @@ main =
 
 type alias Model =
   { content : String
-  , vars       : List Var
+  , terms : TermEnv
+  , checks : CheckEnv
+  , annotations : TypeEnv
   , renderTreeInfos : List RenderTreeInfo
   , errorMsg : String
   }
@@ -78,16 +81,34 @@ update msg model =
       case r of
         Ok ts ->
           let
-            env = joinTermsWithTypes ts
-            vs = envToVars env
-            ris = genRenderInfos 3 vs
+            terms = filterLeft ts
+            annotations = filterRight ts
+            ris = genRenderInfos 3 terms
           in
-            ({ model | vars = vs, renderTreeInfos = ris }
+            ({ model | terms = terms, renderTreeInfos = ris }
             , Cmd.none)
 
         Err e ->
           ({ model | errorMsg = e }, Cmd.none)
 
+
+filterLeft : List (Either a b) -> List a
+filterLeft xs =
+  filterMap (\x ->
+    case x of
+      Left l -> Just l
+      Right _ -> Nothing
+  ) xs
+
+filterRight : List (Either a b) -> List b
+filterRight xs =
+  filterMap (\x ->
+    case x of
+      Left _ -> Nothing
+      Right r -> Just r
+  ) xs
+
+{-
 joinTermsWithTypes : List (String, Either Term VType) -> Env
 joinTermsWithTypes ts =
   filterMap
@@ -117,7 +138,7 @@ findType n ts =
 
           _      -> Nothing
       )
-    |> head
+    |> head-}
 
 
 -- runs update function on items passing the filter function
@@ -137,15 +158,16 @@ filterUpdate cond upd xs =
 Generates a list of render infos.  This function exists mostly so that render
 infos can recieve ids.
 -}
-genRenderInfos : Int -> List Var -> List RenderTreeInfo -- Changed List Var to Env
-genRenderInfos depth vars =
+genRenderInfos : Int -> TermEnv -> List RenderTreeInfo -- Changed List Var to Env
+genRenderInfos depth terms =
   List.indexedMap
-    ( \i var ->
+    ( \i (name, term) ->
         { id = i
-        , var = var
+        , term = term
+        , name = name
         , depth = depth
         } )
-    vars
+    Dict.toList terms
 
 
 -- PORTS
@@ -367,7 +389,7 @@ view model =
 --     []-> [div [class "tkns-div"] [text ""]]
 --     (l::ls) -> [div [class "tkns-div"] [text (Tokenizer.tokenizePrint l)]] ++ (printTknsLBL ls)
 
-renderSummary : Env -> RenderTree -> Html Msg
+renderSummary : TermEnv -> RenderTree -> Html Msg
 renderSummary envr (Node rNode _) =
   div [ class "summary" ]
   [ h1 [ class "summary-title" ] [ text "Summary:" ]
@@ -533,21 +555,24 @@ RenderTree
 -}
 type alias RenderTreeInfo =
   { id: Int
-  , var: Var
-  , depth: Int }
+  , depth: Int
+  , term: Term
+  , name: String }
 
 
 -- creates a render tree from a rtInfo and an environment
-genRenderTree2 : RenderTreeInfo -> Env -> RenderTree
+genRenderTree2 : RenderTreeInfo -> TermEnv -> RenderTree
 genRenderTree2 rtInfo env =
   genRenderTree rtInfo.depth env rtInfo.var.term
 
-genRenderTree : Int -> Env -> Term -> RenderTree
+genRenderTree : Int -> TermEnv -> Term -> RenderTree
 genRenderTree depth e t =
   let
     dnew = depth - 1
     gTree = genRenderTree dnew e
-    checkStatus = typecheck e t
+    -- temporary - reintroduce when done refactoring
+    --checkStatus = typecheck e t
+    checkStatus = Checks TInt
     children =
       case t of
         CTerm _   -> []
