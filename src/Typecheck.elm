@@ -3,7 +3,7 @@ import List exposing (..)
 import List.Extra exposing (elemIndex, getAt)
 import Dict exposing (Dict)
 import Types exposing (Const(..), BinOp(..), Term(..), VType(..), listToTypeSign, typeSignToList)
-import Environment exposing (TypeEnv)
+import Environment exposing (TermEnv)
 
 
 
@@ -168,7 +168,7 @@ andThen2 fn res1 res2 =
     Invalid -> Invalid
 
 
-checkBinOp : TypeEnv -> BinOp -> VType -> VType -> CheckResult
+checkBinOp : TermEnv -> BinOp -> VType -> VType -> CheckResult
 checkBinOp env op t1 t2 =
   let
     operandType =
@@ -198,7 +198,7 @@ checkBinOp env op t1 t2 =
       Fails 1 operandType t1 resultType
     
 
-typecheck : TypeEnv -> Term -> CheckResult
+typecheck : TermEnv -> Term -> CheckResult
 typecheck env t =
   case t of
     CTerm c ->
@@ -215,7 +215,7 @@ typecheck env t =
     
     VTerm v ->
       case Dict.get v env of
-        Just sub -> Checks sub
+        Just sub -> typecheck env sub
         Nothing  -> Invalid
     
     Lam name body ->
@@ -226,8 +226,9 @@ typecheck env t =
         Lam name body ->
           let
             argType = typecheck env body
-          in 
-            andThen ( \ty -> typecheck (Dict.insert name ty env) body ) argType
+          in
+            Checks TInt
+            --andThen ( \ty -> typecheck (Dict.insert name ty env) body ) argType
           
         _ -> Invalid
 

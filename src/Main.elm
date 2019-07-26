@@ -40,7 +40,9 @@ type alias Model =
 init : () -> (Model, Cmd Msg)
 init _ =
   ( { content = ""
-    , vars = []
+    , terms = Dict.empty
+    , checks = Dict.empty
+    , annotations = Dict.empty
     , renderTreeInfos = []
     , errorMsg = ""
     }
@@ -81,8 +83,8 @@ update msg model =
       case r of
         Ok ts ->
           let
-            terms = filterLeft ts
-            annotations = filterRight ts
+            terms = buildDict (filterTerms ts)
+            annotations = buildDict (filterAnnotations ts)
             ris = genRenderInfos 3 terms
           in
             ({ model | terms = terms, renderTreeInfos = ris }
@@ -91,21 +93,24 @@ update msg model =
         Err e ->
           ({ model | errorMsg = e }, Cmd.none)
 
+buildDict : List (comparable, b) -> Dict comparable b
+buildDict xs =
+  List.foldr (\(k,v) dict -> Dict.insert k v dict) Dict.empty xs
 
-filterLeft : List (Either a b) -> List a
-filterLeft xs =
-  filterMap (\x ->
+filterTerms : List (String, Either a b) -> List (String, a)
+filterTerms xs =
+  filterMap (\(n,x) ->
     case x of
-      Left l -> Just l
+      Left l -> Just (n, l)
       Right _ -> Nothing
   ) xs
 
-filterRight : List (Either a b) -> List b
-filterRight xs =
-  filterMap (\x ->
+filterAnnotations : List (String, Either a b) -> List (String, b)
+filterAnnotations xs =
+  filterMap (\(n,x) ->
     case x of
+      Right l -> Just (n, l)
       Left _ -> Nothing
-      Right r -> Just r
   ) xs
 
 {-
@@ -167,7 +172,7 @@ genRenderInfos depth terms =
         , name = name
         , depth = depth
         } )
-    Dict.toList terms
+    (Dict.toList terms)
 
 
 -- PORTS
@@ -366,18 +371,18 @@ view model =
             h3 [ class "css-title" ] [text "Input Program:"]
             , textarea [ rows 10, cols 50, placeholder "Text to render", value model.content, onInput Change ] []
           ]
-          , div [class "tokenizer-parser-container"]
+          {-, div [class "tokenizer-parser-container"]
           [
             h3 [ class "css-title" ] [text "Parse Tree:"]
             , div [class "expression-builder"] (printPT model.vars)
-          ]
+          ]-}
         ]
       , div [ class "flexs-container" ]
       [
          div [class "tree-title-container"]
          [
             h3 [class "css-title"] [text "Derivation Tree:"]
-          , div [class "trees-container"] (printRT model.vars model.renderTreeInfos)
+          , div [class "trees-container"] (printRT model.terms model.renderTreeInfos)
          ]
       ]
     ]
@@ -397,7 +402,7 @@ renderSummary envr (Node rNode _) =
   ]
 
 
-renderTree : Env -> RenderTree -> Html Msg
+renderTree : TermEnv -> RenderTree -> Html Msg
 renderTree e t =
   let
     render = renderTree e
@@ -410,7 +415,7 @@ renderTree e t =
           div [] []
 
 
-renderTerm : Env -> Term -> Html Msg
+renderTerm : TermEnv -> Term -> Html Msg
 renderTerm e t =
   let
     spanClass =
@@ -563,7 +568,7 @@ type alias RenderTreeInfo =
 -- creates a render tree from a rtInfo and an environment
 genRenderTree2 : RenderTreeInfo -> TermEnv -> RenderTree
 genRenderTree2 rtInfo env =
-  genRenderTree rtInfo.depth env rtInfo.var.term
+  genRenderTree rtInfo.depth env rtInfo.term
 
 genRenderTree : Int -> TermEnv -> Term -> RenderTree
 genRenderTree depth e t =
@@ -577,7 +582,7 @@ genRenderTree depth e t =
       case t of
         CTerm _   -> []
         VTerm x   ->
-          case lookup e x of
+          case Dict.get x e of
             Just subst -> [gTree subst]
             Nothing    -> []
         BinTerm _ x y -> [gTree x, gTree y]
@@ -600,27 +605,27 @@ genRenderTree depth e t =
     Node n children
 
 
-printPT : List Var -> List (Html Msg)
-printPT vars =
+{-printPT : TermEnv -> List (Html Msg)
+printPT env =
   case vars of
     []-> [div [class "tkns-div"] [text ""]]
-    (l::ls) -> [div [class "tkns-div"] [text (toString l.term)]] ++ (printPT ls)
+    (l::ls) -> [div [class "tkns-div"] [text (toString l.term)]] ++ (printPT ls)-}
 
 
-printRT : List Var -> List RenderTreeInfo -> List (Html Msg)
-printRT vars rtInfos =
+printRT : TermEnv -> List RenderTreeInfo -> List (Html Msg)
+printRT env rtInfos =
   case rtInfos of
     [] -> [div [class "tkns-div"] [text ""]]
     (ri::rs) ->
       let
-        rt = genRenderTree2 ri (Environment.varsToEnv vars)
+        rt = genRenderTree2 ri env
       in
         [div [ class "flex-container" ]
                       [
-                              div [class "tree-container"] [ renderTree (Environment.varsToEnv vars) rt ]
+                              div [class "tree-container"] [ renderTree env rt ]
                           ,   div [ class "ui-div" ]
                               [
-                                renderSummary (Environment.varsToEnv vars) rt
+                                renderSummary env rt
                                 , h3 [class "css-title"] [text "Depth:"]
                                 , div [class "button-container"]
                                   [ div [ class "buttons" ]
@@ -630,4 +635,4 @@ printRT vars rtInfos =
                                     ]
                                   ]
                               ]
-                      ]] ++ (printRT vars rs)
+                      ]] ++ (printRT env rs)
