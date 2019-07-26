@@ -160,8 +160,8 @@ eval e t =
     Lam x y -> Just (VFun e x y)
 
     App fn arg ->
-      case fn of
-        Lam name body ->
+      case evale fn of
+        Just (VFun env name body) ->
           let e2 = insert name arg e in
           eval e2 body
         
