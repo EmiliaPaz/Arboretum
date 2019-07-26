@@ -157,12 +157,12 @@ eval e t =
           wrapBool ( tryBinFn (||) (tryBool (evale x)) (tryBool (evale y)) )
 
     -- Lambda gets evaluated to a closure.
-    Lam x y -> Just (VFun e x y)
+    Lam name body -> Just (VFun e name body)
 
     App fn arg ->
       case evale fn of
         Just (VFun env name body) ->
-          let e2 = insert name arg e in
+          let e2 = insert name arg env in
           eval e2 body
         
         _ ->
