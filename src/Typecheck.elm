@@ -2,8 +2,7 @@ module Typecheck exposing (CheckResult(..), CheckEnv, typeToString, checkResultT
 import List exposing (..)
 import List.Extra exposing (elemIndex, getAt)
 import Dict exposing (Dict)
-import Types exposing (Const(..), BinOp(..), Term(..), VType(..), listToTypeSign, typeSignToList)
-import Environment exposing (TermEnv, TypeEnv)
+import Types exposing (Const(..), BinOp(..), Term(..), VType(..), TermEnv, listToTypeSign, typeSignToList)
 
 
 
@@ -104,30 +103,6 @@ checkSig sig args =
               Invalid
 
       Nothing -> Invalid
-
-{-
-  Returns the types of the arguments to the binary operations for type checking.
--}
-{-getTypeArgs : Env -> Term -> List CheckResult
-getTypeArgs env t =
-  let check = typecheck env in
-    case t of
-      Plus x y  -> (check x) :: (check y) :: []
-      Minus x y -> (check x) :: (check y) :: []
-      Times x y -> (check x) :: (check y) :: []
-      Eq x y    -> (check x) :: (check y) :: []
-      And x y   -> (check x) :: (check y) :: []
-      Or x y    -> (check x) :: (check y) :: []
-      _         -> []-}
-
-{-
-  Inserts a lambda's argument into the environment (takes into account nested lambdas).
--}
-{-insertArgs : Env -> Term -> Env
-insertArgs env t =
-  case t of
-    Lam a b -> insertArgs (extend env (a, EmptyTree, TInt)) b --Defaults to int
-    _ -> env-}
 
 
 andThen : (VType -> CheckResult) -> CheckResult -> CheckResult
@@ -248,83 +223,3 @@ typecheckAll ts =
   List.foldl ( \(name,term) env -> Dict.insert name (typecheck env term) env) 
     Dict.empty ts
 
-
-{-
-  Uses checkSig for everything except VTerm, Lam, and App.
--}
-{-
-typecheck : Env -> Term -> CheckResult
-typecheck env t =
-  let
-    -- curry environment into the typechecker right away
-    check = typecheck env
-    sig =
-      case getTypeSignature t of
-        Just vt -> typeSignToList vt
-        Nothing -> []
-    args = getTypeArgs env t
-  in
-    case t of
-      VTerm v ->
-        case lookup env v of
-          Just sub -> check sub
-          Nothing  -> Invalid
-
-      Lam a b ->
-        typecheckLam env t
-
-      App x y -> typecheckApp env t
-      _ -> checkSig sig args
--}
-
-{-
-  Insert the arguments into the environment, look up the annotated type of this function,
-  and assume this type is correct. This is a temporary feature. More work needs to be done
-  here and it will probably imply implementing type inference.
--}
-{-
-typecheckLam : Env -> Term -> CheckResult
-typecheckLam env t =
-  case t of
-    Lam a b ->
-      let
-        newEnv =  insertArgs env (Lam a b)
-      in
-        case lookupName newEnv t of --We might want to find a different way of doing this (see comments for lookupName in Environment)
-          Just s ->
-            case lookupType newEnv s of
-              Just vt -> Checks vt --For now, the user's type annotation is assumed to be correct.
-              Nothing -> Invalid
-          Nothing -> Invalid
-    _ -> Invalid -- Shouldn't be reached
--}
-
-
-{-
-  This function works the same as before except we use the environment directly rather than using substitution.
--}
-{-
-typecheckApp : Env -> Term -> CheckResult
-typecheckApp env t =
-  case t of
-    App x y ->
-      case x of
-        Lam w z ->
-          case getTypeSignature y of
-            Just vt ->
-              let newEnv = addOrModify env (True, True) (w, y, vt) in
-                typecheck newEnv z
-            Nothing -> Invalid
-        VTerm v ->
-          let lambda = lookup env v
-            in case lambda of
-              Just (Lam w z) ->
-                case getTypeSignature y of
-                  Just vt ->
-                    let newEnv = addOrModify env (True, True) (w, y, vt) in
-                      typecheck newEnv z
-                  Nothing -> Invalid
-              _ -> Invalid
-        _ -> Invalid
-    _ -> Invalid --Shouldn't be reached
--}

@@ -3,7 +3,6 @@ module Evaluate exposing (..)
 import List exposing (..)
 import List.Extra exposing (elemIndex, getAt)
 import Types exposing (..)
-import Environment exposing (TermEnv, TypeEnv)
 import Dict exposing (get, insert)
 
 -- Val is a value that a term can evaluate to
@@ -173,18 +172,3 @@ eval e t =
     
     Missing ->
       Nothing
-
-
-
-    --Same as before, except we use a closure rather than substitution.
-    {-App x y ->
-      case evale x of
-        Just (VFun e1 a b) ->
-          case evale y of
-            Just w ->
-              let e2 = insert 
-              let e2 = addOrModify e1 (True, False) (a, valToTerm w, TInt) in
-                eval e2 b
-            _ -> Nothing
-        _ -> Nothing
-    _ -> Nothing-}

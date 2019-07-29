@@ -10,7 +10,6 @@ import Json.Decode as Decode exposing (Decoder, field, bool, int, string)
 import String exposing (split)
 import Dict exposing (Dict)
 
-import Environment exposing (TypeEnv, TermEnv)
 import Evaluate
 import Types exposing (..)
 import Typecheck exposing (CheckResult(..), CheckEnv, typecheck, typecheckAll, checkResultToString, typeToString)
