@@ -110,38 +110,6 @@ filterAnnotations xs =
       Left _ -> Nothing
   ) xs
 
-{-
-joinTermsWithTypes : List (String, Either Term VType) -> Env
-joinTermsWithTypes ts =
-  filterMap
-    (\(n, t) ->
-      case t of
-        Left term ->
-          let
-            ty = case findType n ts of
-                   Just foundType -> foundType
-                   Nothing        -> TInt
-          in
-            Just (n, term, ty)
-
-        _ -> Nothing
-    ) ts
-
-findType : String -> List (String, Either Term VType) -> Maybe VType
-findType n ts =
-  ts
-    |> filterMap
-      (\(tName, t) ->
-        case n == tName of
-          True ->
-            case t of
-              Right ty -> Just ty
-              Left _   -> Nothing
-
-          _      -> Nothing
-      )
-    |> head-}
-
 
 -- runs update function on items passing the filter function
 filterUpdate : (a -> Bool) -> (a -> a) -> List a -> List a
