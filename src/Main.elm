@@ -13,7 +13,7 @@ import Dict exposing (Dict)
 import Environment exposing (TypeEnv, TermEnv)
 import Evaluate
 import Types exposing (..)
-import Typecheck exposing (CheckResult(..), CheckEnv, typecheck, checkResultToString, typeToString)
+import Typecheck exposing (CheckResult(..), CheckEnv, typecheck, typecheckAll, checkResultToString, typeToString)
 
 
 -- MAIN
@@ -83,19 +83,17 @@ update msg model =
       case r of
         Ok ts ->
           let
-            terms = buildDict (filterTerms ts)
-            annotations = buildDict (filterAnnotations ts)
+            terms = Dict.fromList (filterTerms ts)
+            annotations = Dict.fromList (filterAnnotations ts)
+            checks = typecheckAll (filterTerms ts)
             ris = genRenderInfos 3 terms
           in
-            ({ model | terms = terms, renderTreeInfos = ris }
+            ({ model | terms = terms, checks = checks, renderTreeInfos = ris }
             , Cmd.none)
 
         Err e ->
           ({ model | errorMsg = e }, Cmd.none)
 
-buildDict : List (comparable, b) -> Dict comparable b
-buildDict xs =
-  List.foldr (\(k,v) dict -> Dict.insert k v dict) Dict.empty xs
 
 filterTerms : List (String, Either a b) -> List (String, a)
 filterTerms xs =
@@ -382,7 +380,7 @@ view model =
          div [class "tree-title-container"]
          [
             h3 [class "css-title"] [text "Derivation Tree:"]
-          , div [class "trees-container"] (printRT model.terms model.renderTreeInfos)
+          , div [class "trees-container"] (printRT model.terms model.checks model.renderTreeInfos)
          ]
       ]
     ]
@@ -402,29 +400,35 @@ renderSummary envr (Node rNode _) =
   ]
 
 
-renderTree : TermEnv -> RenderTree -> Html Msg
-renderTree e t =
+renderTree : TermEnv -> CheckEnv -> RenderTree -> Html Msg
+renderTree terms checks t =
   let
-    render = renderTree e
+    newChecks =
+      case t of 
+        Node n children ->
+          case n.term of
+            App (Lam name body) arg -> Dict.insert name (typecheck checks arg) checks
+            _ -> checks
+    render = renderTree terms newChecks
   in
     case t of
       Node n children ->
         if n.render then
-          div [ class "tree-div" ] ( map render children ++ [ renderTerm e n.term ] )
+          div [ class "tree-div" ] ( map render children ++ [ renderTerm terms newChecks n.term ] )
         else
           div [] []
 
 
-renderTerm : TermEnv -> Term -> Html Msg
-renderTerm e t =
+renderTerm : TermEnv -> CheckEnv -> Term -> Html Msg
+renderTerm terms checks t =
   let
     spanClass =
-      case typecheck e t of
+      case typecheck checks t of
         Checks _    -> "type-checks"
         Fails _ _ _ _ -> "type-fails"
         Partial _   -> "type-partial"
         Invalid     -> "type-fails"
-    checkResult = typecheck e t
+    checkResult = typecheck checks t
   in
     div [ class "text-div" ]
     [ renderTermInline checkResult t
@@ -612,20 +616,20 @@ printPT env =
     (l::ls) -> [div [class "tkns-div"] [text (toString l.term)]] ++ (printPT ls)-}
 
 
-printRT : TermEnv -> List RenderTreeInfo -> List (Html Msg)
-printRT env rtInfos =
+printRT : TermEnv -> CheckEnv -> List RenderTreeInfo -> List (Html Msg)
+printRT terms checks rtInfos =
   case rtInfos of
     [] -> [div [class "tkns-div"] [text ""]]
     (ri::rs) ->
       let
-        rt = genRenderTree2 ri env
+        rt = genRenderTree2 ri terms
       in
         [div [ class "flex-container" ]
                       [
-                              div [class "tree-container"] [ renderTree env rt ]
+                              div [class "tree-container"] [ renderTree terms checks rt ]
                           ,   div [ class "ui-div" ]
                               [
-                                renderSummary env rt
+                                renderSummary terms rt
                                 , h3 [class "css-title"] [text "Depth:"]
                                 , div [class "button-container"]
                                   [ div [ class "buttons" ]
@@ -635,4 +639,4 @@ printRT env rtInfos =
                                     ]
                                   ]
                               ]
-                      ]] ++ (printRT env rs)
+                      ]] ++ (printRT terms checks rs)

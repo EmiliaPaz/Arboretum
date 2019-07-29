@@ -1,9 +1,9 @@
-module Typecheck exposing (CheckResult(..), CheckEnv, typeToString, checkResultToString, typecheck)
+module Typecheck exposing (CheckResult(..), CheckEnv, typeToString, checkResultToString, typecheck, typecheckAll)
 import List exposing (..)
 import List.Extra exposing (elemIndex, getAt)
 import Dict exposing (Dict)
 import Types exposing (Const(..), BinOp(..), Term(..), VType(..), listToTypeSign, typeSignToList)
-import Environment exposing (TermEnv)
+import Environment exposing (TermEnv, TypeEnv)
 
 
 
@@ -168,7 +168,7 @@ andThen2 fn res1 res2 =
     Invalid -> Invalid
 
 
-checkBinOp : TermEnv -> BinOp -> VType -> VType -> CheckResult
+checkBinOp : CheckEnv -> BinOp -> VType -> VType -> CheckResult
 checkBinOp env op t1 t2 =
   let
     operandType =
@@ -198,7 +198,7 @@ checkBinOp env op t1 t2 =
       Fails 1 operandType t1 resultType
     
 
-typecheck : TermEnv -> Term -> CheckResult
+typecheck : CheckEnv -> Term -> CheckResult
 typecheck env t =
   case t of
     CTerm c ->
@@ -215,25 +215,38 @@ typecheck env t =
     
     VTerm v ->
       case Dict.get v env of
-        Just sub -> typecheck env sub
+        Just sub -> sub
         Nothing  -> Invalid
     
     Lam name body ->
-      Invalid
+      let
+        argType = 
+          case Dict.get name env of
+            Just sub -> sub
+            Nothing  -> Invalid
+        outType = typecheck (Dict.insert name argType env) body
+      in
+        andThen2 (\a o -> Checks (TFun a o)) argType outType
 
     App fn arg ->
       case fn of
         Lam name body ->
           let
-            argType = typecheck env body
+            argType = typecheck env arg
+            outType = typecheck (Dict.insert name argType env) body
           in
-            Checks TInt
+            andThen2 (\_ o -> Checks o) argType outType
             --andThen ( \ty -> typecheck (Dict.insert name ty env) body ) argType
           
         _ -> Invalid
 
     
     _ -> Invalid
+
+typecheckAll : List (String, Term) -> CheckEnv
+typecheckAll ts =
+  List.foldl ( \(name,term) env -> Dict.insert name (typecheck env term) env) 
+    Dict.empty ts
 
 
 {-
