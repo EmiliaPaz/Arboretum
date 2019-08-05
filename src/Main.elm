@@ -536,11 +536,6 @@ newRenderTree olrdRTS newRTS (Node nTerm _) depth env = case olrdRTS of
               else newRenderTree rs (newRTS ++ [r]) tree depth env-}
 
 
-type alias RenderTree = Tree RenderNode
-
-type alias RenderNode =
-  { render: Bool
-  , term: Term }
 
 {-
 RenderTreeInfo contains all of the information necessary to generate a
@@ -594,11 +589,6 @@ genRenderTree depth e t =
     Node n children
 
 
-{-printPT : TermEnv -> List (Html Msg)
-printPT env =
-  case vars of
-    []-> [div [class "tkns-div"] [text ""]]
-    (l::ls) -> [div [class "tkns-div"] [text (toString l.term)]] ++ (printPT ls)-}
 
 
 printRT : TermEnv -> CheckEnv -> List RenderTreeInfo -> List (Html Msg)
