@@ -1,5 +1,7 @@
 module Types exposing (..)
 
+import Dict exposing (Dict)
+
 type Tree a = Node a (List (Tree a))
 
 type Token = TTSC TokTSC | TokAssign | TokLParen | TokRParen | TokHole |
@@ -10,10 +12,19 @@ type TokTSC = TTSCInt TokTSCInt | TTSCBool TokTSCBool
 type TokTSCInt = TokPlus | TokMinus | TokTimes
 type TokTSCBool = TokEq | TokAnd | TokOr
 
+{-
 type Const = CBool Bool | CInt Int
 type Term = CTerm Const | VTerm String | Plus Term Term | Minus Term Term | Times Term Term
               | Div Term Term | Mod Term Term | Eq Term Term | And Term Term | Or Term Term
               | Lam String Term | App Term Term |  Tuple Term Term | MissingInt | MissingBool | Missing | EmptyTree
+-}
+
+type BinOp = Plus | Minus | Times | Div | Mod | Eq | And | Or
+
+type Const = CBool Bool | CInt Int
+
+type Term = CTerm Const | VTerm String | BinTerm BinOp Term Term | Tuple Term Term
+            | Lam String Term | App Term Term | Missing | EmptyTree
 
 {-
   V(alue)Type is a type that a TreeAssembly term can evaluate to
@@ -25,25 +36,8 @@ type alias Var =
   , term: Term
   , vtype: VType}
 
-{-
-  Returns the type signature of basic language constructs (only used for binary operators)
--}
-getTypeSignature : Term -> Maybe VType
-getTypeSignature t =
-  case t of
-    CTerm (CBool b) -> Just TBool
-    CTerm (CInt i) -> Just TInt
-    Plus x y -> Just (TFun TInt (TFun TInt TInt))
-    Minus x y -> Just (TFun TInt (TFun TInt TInt))
-    Times x y -> Just (TFun TInt (TFun TInt TInt))
-    Div x y -> Just (TFun TInt (TFun TInt TInt))
-    Mod x y -> Just (TFun TInt (TFun TInt TInt))
-    Eq x y -> Just (TFun TInt (TFun TInt TBool))
-    And x y -> Just (TFun TBool (TFun TBool TBool))
-    Or x y -> Just (TFun TBool (TFun TBool TBool))
-    Lam x y -> Nothing --Need to work on this.
-    App x y -> Nothing --Might have to change this later on
-    _ -> Nothing
+type alias TermEnv = Dict String Term
+type alias TypeEnv = Dict String VType 
 
 {-
   Converts a list of VTypes to a nested VType in the form VFun VType VType

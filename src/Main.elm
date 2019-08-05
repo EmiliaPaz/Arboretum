@@ -8,11 +8,11 @@ import List exposing (map, filterMap, head, tail, reverse, filter)
 import Debug exposing (toString)
 import Json.Decode as Decode exposing (Decoder, field, bool, int, string)
 import String exposing (split)
+import Dict exposing (Dict)
 
-import Environment exposing (Env, lookup, varsToEnv, envToVars, extend)
 import Evaluate
 import Types exposing (..)
-import Typecheck exposing (CheckResult(..), typecheck, checkResultToString, typeToString)
+import Typecheck exposing (CheckResult(..), CheckEnv, typecheck, typecheckAll, checkResultToString, typeToString)
 
 
 -- MAIN
@@ -28,7 +28,9 @@ main =
 
 type alias Model =
   { content : String
-  , vars       : List Var
+  , terms : TermEnv
+  , checks : CheckEnv
+  , annotations : TypeEnv
   , renderTreeInfos : List RenderTreeInfo
   , errorMsg : String
   }
@@ -37,7 +39,9 @@ type alias Model =
 init : () -> (Model, Cmd Msg)
 init _ =
   ( { content = ""
-    , vars = []
+    , terms = Dict.empty
+    , checks = Dict.empty
+    , annotations = Dict.empty
     , renderTreeInfos = []
     , errorMsg = ""
     }
@@ -78,46 +82,33 @@ update msg model =
       case r of
         Ok ts ->
           let
-            env = joinTermsWithTypes ts
-            vs = envToVars env
-            ris = genRenderInfos 3 vs
+            terms = Dict.fromList (filterTerms ts)
+            annotations = Dict.fromList (filterAnnotations ts)
+            checks = typecheckAll (filterTerms ts)
+            ris = genRenderInfos 3 terms
           in
-            ({ model | vars = vs, renderTreeInfos = ris }
+            ({ model | terms = terms, checks = checks, renderTreeInfos = ris }
             , Cmd.none)
 
         Err e ->
           ({ model | errorMsg = e }, Cmd.none)
 
-joinTermsWithTypes : List (String, Either Term VType) -> Env
-joinTermsWithTypes ts =
-  filterMap
-    (\(n, t) ->
-      case t of
-        Left term ->
-          let
-            ty = case findType n ts of
-                   Just foundType -> foundType
-                   Nothing        -> TInt
-          in
-            Just (n, term, ty)
 
-        _ -> Nothing
-    ) ts
+filterTerms : List (String, Either a b) -> List (String, a)
+filterTerms xs =
+  filterMap (\(n,x) ->
+    case x of
+      Left l -> Just (n, l)
+      Right _ -> Nothing
+  ) xs
 
-findType : String -> List (String, Either Term VType) -> Maybe VType
-findType n ts =
-  ts
-    |> filterMap
-      (\(tName, t) ->
-        case n == tName of
-          True ->
-            case t of
-              Right ty -> Just ty
-              Left _   -> Nothing
-
-          _      -> Nothing
-      )
-    |> head
+filterAnnotations : List (String, Either a b) -> List (String, b)
+filterAnnotations xs =
+  filterMap (\(n,x) ->
+    case x of
+      Right l -> Just (n, l)
+      Left _ -> Nothing
+  ) xs
 
 
 -- runs update function on items passing the filter function
@@ -137,15 +128,16 @@ filterUpdate cond upd xs =
 Generates a list of render infos.  This function exists mostly so that render
 infos can recieve ids.
 -}
-genRenderInfos : Int -> List Var -> List RenderTreeInfo -- Changed List Var to Env
-genRenderInfos depth vars =
+genRenderInfos : Int -> TermEnv -> List RenderTreeInfo -- Changed List Var to Env
+genRenderInfos depth terms =
   List.indexedMap
-    ( \i var ->
+    ( \i (name, term) ->
         { id = i
-        , var = var
+        , term = term
+        , name = name
         , depth = depth
         } )
-    vars
+    (Dict.toList terms)
 
 
 -- PORTS
@@ -297,13 +289,13 @@ binCombinerRight comb first ts =
     t::tr ->
       comb first (binCombinerRight comb t tr)
 
-addDecoder = binDecoder (\t1 t2 -> Plus t1 t2)
-subtDecoder = binDecoder (\t1 t2 -> Minus t1 t2)
-multDecoder = binDecoder (\t1 t2 -> Times t1 t2)
-divDecoder = binDecoder (\t1 t2 -> Div t1 t2)
-modDecoder = binDecoder (\t1 t2 -> Mod t1 t2)
-andDecoder = binDecoder (\t1 t2 -> And t1 t2)
-orDecoder = binDecoder (\t1 t2 -> Or t1 t2)
+addDecoder = binDecoder (\t1 t2 -> BinTerm Plus t1 t2)
+subtDecoder = binDecoder (\t1 t2 -> BinTerm Minus t1 t2)
+multDecoder = binDecoder (\t1 t2 -> BinTerm Times t1 t2)
+divDecoder = binDecoder (\t1 t2 -> BinTerm Div t1 t2)
+modDecoder = binDecoder (\t1 t2 -> BinTerm Mod t1 t2)
+andDecoder = binDecoder (\t1 t2 -> BinTerm And t1 t2)
+orDecoder = binDecoder (\t1 t2 -> BinTerm Or t1 t2)
 appDecoder = binDecoder (\t1 t2 -> App t1 t2)
 
 eqDecoder : Decoder Term
@@ -312,7 +304,7 @@ eqDecoder =
     (field "lhs" exprDecoder)
     (field "rhs" exprDecoder)
     |> Decode.andThen
-      (\(l, r) -> Decode.succeed (Eq l r))
+      (\(l, r) -> Decode.succeed (BinTerm Eq l r))
 
 intDecoder : Decoder Term
 intDecoder =
@@ -354,18 +346,18 @@ view model =
             h3 [ class "css-title" ] [text "Input Program:"]
             , textarea [ rows 10, cols 50, placeholder "Text to render", value model.content, onInput Change ] []
           ]
-          , div [class "tokenizer-parser-container"]
+          {-, div [class "tokenizer-parser-container"]
           [
             h3 [ class "css-title" ] [text "Parse Tree:"]
             , div [class "expression-builder"] (printPT model.vars)
-          ]
+          ]-}
         ]
       , div [ class "flexs-container" ]
       [
          div [class "tree-title-container"]
          [
             h3 [class "css-title"] [text "Derivation Tree:"]
-          , div [class "trees-container"] (printRT model.vars model.renderTreeInfos)
+          , div [class "trees-container"] (printRT model.terms model.checks model.renderTreeInfos)
          ]
       ]
     ]
@@ -377,7 +369,7 @@ view model =
 --     []-> [div [class "tkns-div"] [text ""]]
 --     (l::ls) -> [div [class "tkns-div"] [text (Tokenizer.tokenizePrint l)]] ++ (printTknsLBL ls)
 
-renderSummary : Env -> RenderTree -> Html Msg
+renderSummary : TermEnv -> RenderTree -> Html Msg
 renderSummary envr (Node rNode _) =
   div [ class "summary" ]
   [ h1 [ class "summary-title" ] [ text "Summary:" ]
@@ -385,29 +377,35 @@ renderSummary envr (Node rNode _) =
   ]
 
 
-renderTree : Env -> RenderTree -> Html Msg
-renderTree e t =
+renderTree : TermEnv -> CheckEnv -> RenderTree -> Html Msg
+renderTree terms checks t =
   let
-    render = renderTree e
+    newChecks =
+      case t of 
+        Node n children ->
+          case n.term of
+            App (Lam name body) arg -> Dict.insert name (typecheck checks arg) checks
+            _ -> checks
+    render = renderTree terms newChecks
   in
     case t of
       Node n children ->
         if n.render then
-          div [ class "tree-div" ] ( map render children ++ [ renderTerm e n.term ] )
+          div [ class "tree-div" ] ( map render children ++ [ renderTerm terms newChecks n.term ] )
         else
           div [] []
 
 
-renderTerm : Env -> Term -> Html Msg
-renderTerm e t =
+renderTerm : TermEnv -> CheckEnv -> Term -> Html Msg
+renderTerm terms checks t =
   let
     spanClass =
-      case typecheck e t of
+      case typecheck checks t of
         Checks _    -> "type-checks"
         Fails _ _ _ _ -> "type-fails"
         Partial _   -> "type-partial"
         Invalid     -> "type-fails"
-    checkResult = typecheck e t
+    checkResult = typecheck checks t
   in
     div [ class "text-div" ]
     [ renderTermInline checkResult t
@@ -421,20 +419,13 @@ renderTerm e t =
 listSubterms : Term -> List Term
 listSubterms t =
   case t of
-    CTerm _ ->   []
-    VTerm _ ->   []
-    Plus x y ->  [x, y]
-    Minus x y -> [x, y]
-    Times x y -> [x, y]
-    Div x y   -> [x, y]
-    Mod x y   -> [x, y]
-    Eq x y ->    [x, y]
-    And x y ->   [x, y]
-    Or x y ->    [x, y]
-    Lam x y ->   [VTerm ("\\" ++ x), y]
-    App x y ->   [x, y]
+    CTerm _     -> []
+    VTerm _     -> []
+    BinTerm _ x y -> [x, y]
+    Lam x y     -> [VTerm ("\\" ++ x), y]
+    App x y     -> [x, y]
     Tuple x y -> [x, y]
-    _ ->         []
+    _           -> []
 
 renderSubtermsRec : Int -> List Term -> CheckResult -> List (Html Msg)
 renderSubtermsRec i ts c =
@@ -491,20 +482,23 @@ renderTermInline result t =
         _         -> True
     opStr =
       case t of
-        CTerm _        -> ""
-        VTerm _        -> ""
-        Plus _ _       -> "+"
-        Minus _ _      -> "-"
-        Times _ _      -> "*"
-        Div _ _        -> "/"
-        Mod _ _        -> "%"
-        Eq _ _         -> "=="
-        And _ _        -> "&&"
-        Or _ _         -> "||"
-        Lam _ _        -> "->"
-        App _ _        -> " "
-        Tuple _ _ -> ","
-        _              -> ""
+        CTerm _   -> ""
+        VTerm _   -> ""
+        BinTerm op _ _ ->
+          case op of
+            Plus  -> "+"
+            Minus -> "-"
+            Times -> "*"
+            Div   -> "/"
+            Mod   -> "%"
+            Eq    -> "=="
+            And   -> "&&"
+            Or    -> "||"
+
+        Lam _ _   -> "->"
+        App _ _   -> " "
+        _         -> ""
+
     subterms = renderSubterms argTerms result
   in
     case isOp of
@@ -554,36 +548,32 @@ RenderTree
 -}
 type alias RenderTreeInfo =
   { id: Int
-  , var: Var
-  , depth: Int }
+  , depth: Int
+  , term: Term
+  , name: String }
 
 
 -- creates a render tree from a rtInfo and an environment
-genRenderTree2 : RenderTreeInfo -> Env -> RenderTree
+genRenderTree2 : RenderTreeInfo -> TermEnv -> RenderTree
 genRenderTree2 rtInfo env =
-  genRenderTree rtInfo.depth env rtInfo.var.term
+  genRenderTree rtInfo.depth env rtInfo.term
 
-genRenderTree : Int -> Env -> Term -> RenderTree
+genRenderTree : Int -> TermEnv -> Term -> RenderTree
 genRenderTree depth e t =
   let
     dnew = depth - 1
     gTree = genRenderTree dnew e
-    checkStatus = typecheck e t
+    -- temporary - reintroduce when done refactoring
+    --checkStatus = typecheck e t
+    checkStatus = Checks TInt
     children =
       case t of
         CTerm _   -> []
         VTerm x   ->
-          case lookup e x of
+          case Dict.get x e of
             Just subst -> [gTree subst]
             Nothing    -> []
-        Plus x y  -> [gTree x, gTree y]
-        Minus x y -> [gTree x, gTree y]
-        Times x y -> [gTree x, gTree y]
-        Div x y   -> [gTree x, gTree y]
-        Mod x y   -> [gTree x, gTree y]
-        Eq x y    -> [gTree x, gTree y]
-        And x y   -> [gTree x, gTree y]
-        Or x y    -> [gTree x, gTree y]
+        BinTerm _ x y -> [gTree x, gTree y]
         -- Lam x y   -> [gTree (VTerm (x)), gTree y]
         App x y   -> [gTree x, gTree y]
         Tuple x y -> [gTree x, gTree y]
@@ -604,27 +594,27 @@ genRenderTree depth e t =
     Node n children
 
 
-printPT : List Var -> List (Html Msg)
-printPT vars =
+{-printPT : TermEnv -> List (Html Msg)
+printPT env =
   case vars of
     []-> [div [class "tkns-div"] [text ""]]
-    (l::ls) -> [div [class "tkns-div"] [text (toString l.term)]] ++ (printPT ls)
+    (l::ls) -> [div [class "tkns-div"] [text (toString l.term)]] ++ (printPT ls)-}
 
 
-printRT : List Var -> List RenderTreeInfo -> List (Html Msg)
-printRT vars rtInfos =
+printRT : TermEnv -> CheckEnv -> List RenderTreeInfo -> List (Html Msg)
+printRT terms checks rtInfos =
   case rtInfos of
     [] -> [div [class "tkns-div"] [text ""]]
     (ri::rs) ->
       let
-        rt = genRenderTree2 ri (Environment.varsToEnv vars)
+        rt = genRenderTree2 ri terms
       in
         [div [ class "flex-container" ]
                       [
-                              div [class "tree-container"] [ renderTree (Environment.varsToEnv vars) rt ]
+                              div [class "tree-container"] [ renderTree terms checks rt ]
                           ,   div [ class "ui-div" ]
                               [
-                                renderSummary (Environment.varsToEnv vars) rt
+                                renderSummary terms rt
                                 , h3 [class "css-title"] [text "Depth:"]
                                 , div [class "button-container"]
                                   [ div [ class "buttons" ]
@@ -634,4 +624,4 @@ printRT vars rtInfos =
                                     ]
                                   ]
                               ]
-                      ]] ++ (printRT vars rs)
+                      ]] ++ (printRT terms checks rs)

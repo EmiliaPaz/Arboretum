@@ -1,8 +1,8 @@
-module Typecheck exposing (CheckResult(..), typeToString, checkResultToString, typecheck)
+module Typecheck exposing (CheckResult(..), CheckEnv, typeToString, checkResultToString, typecheck, typecheckAll)
 import List exposing (..)
 import List.Extra exposing (elemIndex, getAt)
-import Types exposing (Const(..), Term(..), VType(..), getTypeSignature, listToTypeSign, typeSignToList)
-import Environment exposing (Env, lookup, lookupType, lookupName, extend, addOrModify)
+import Dict exposing (Dict)
+import Types exposing (Const(..), BinOp(..), Term(..), VType(..), TermEnv, listToTypeSign, typeSignToList)
 
 
 
@@ -26,6 +26,7 @@ Invalid : Typechecking failed with no useful diagnostic info
 -}
 type CheckResult = Checks VType | Fails Int VType VType VType | Partial VType | Invalid
 
+type alias CheckEnv = Dict String CheckResult
 
 checkResultToString : CheckResult -> String
 checkResultToString r =
@@ -104,124 +105,128 @@ checkSig sig args =
 
       Nothing -> Invalid
 
-{-
-  Returns the types of the arguments to the binary operations for type checking.
--}
-getTypeArgs : Env -> Term -> List CheckResult
-getTypeArgs env t =
-  let check = typecheck env in
-    case t of
-      Plus x y  -> (check x) :: (check y) :: []
-      Minus x y -> (check x) :: (check y) :: []
-      Times x y -> (check x) :: (check y) :: []
-      Div x y   -> (check x) :: (check y) :: []
-      Mod x y   -> (check x) :: (check y) :: []
-      Eq x y    -> (check x) :: (check y) :: []
-      And x y   -> (check x) :: (check y) :: []
-      Or x y    -> (check x) :: (check y) :: []
-      Tuple x y -> (check x) :: (check y) :: []
-      _         -> []
 
-{-
-  Inserts a lambda's argument into the environment (takes into account nested lambdas).
--}
-insertArgs : Env -> Term -> Env
-insertArgs env t =
-  case t of
-    Lam a b -> insertArgs (extend env (a, EmptyTree, TInt)) b --Defaults to int
-    _ -> env
+andThen : (VType -> CheckResult) -> CheckResult -> CheckResult
+andThen fn result =
+  case result of
+    Checks t1 ->
+      fn t1
+    
+    Partial t1 ->
+      case fn t1 of
+        Checks t2 -> Partial t2
+        _         -> fn t1
+    
+    Fails _ _ _ out ->
+      case fn out of
+        Checks t2 -> Partial t2
+        _         -> fn out
 
-{-
-  Uses checkSig for everything except VTerm, Lam, and App.
--}
-typecheck : Env -> Term -> CheckResult
-typecheck env t =
+    Invalid -> Invalid
+
+
+andThen2 : (VType -> VType -> CheckResult) -> CheckResult -> CheckResult -> CheckResult
+andThen2 fn res1 res2 =
+  case res1 of
+    Checks t1 ->
+      andThen (fn t1) res2
+
+    Partial t1 ->
+      case andThen (fn t1) res2 of
+        Checks t2 -> Partial t2
+        _         -> andThen (fn t1) res2
+
+    Fails _ _ _ out ->
+      case andThen (fn out) res2 of
+        Checks t2 -> Partial t2
+        _         -> andThen (fn out) res2
+    
+    Invalid -> Invalid
+
+
+checkBinOp : CheckEnv -> BinOp -> VType -> VType -> CheckResult
+checkBinOp env op t1 t2 =
   let
-    -- curry environment into the typechecker right away
-    check = typecheck env
-    sig =
-      case getTypeSignature t of
-        Just vt -> typeSignToList vt
-        Nothing -> []
-    args = getTypeArgs env t
+    operandType =
+      case op of
+        Plus -> TInt
+        Minus -> TInt
+        Times -> TInt
+        Div -> TInt
+        Mod -> TInt
+        Eq -> TInt
+        And -> TBool
+        Or -> TBool
+
+    resultType =
+      case op of
+        Plus -> TInt
+        Minus -> TInt
+        Times -> TInt
+        Div -> TInt
+        Mod -> TInt
+        Eq -> TBool
+        And -> TBool
+        Or -> TBool
   in
-    case t of
-      VTerm v ->
-        case lookup env v of
-          Just sub -> check sub
-          Nothing  -> Invalid
+    if t1 == operandType then
+      if t2 == operandType then
+        Checks resultType
+      else
+        Fails 2 operandType t2 resultType
+    else
+      Fails 1 operandType t1 resultType
+    
 
-      Lam a b ->
-        typecheckLam env t
-
-      App x y -> typecheckApp env t
-
-      Tuple m n ->
-        case (typecheck env m, typecheck env n) of
-          -- Checks a
-          (Checks a, Checks x)            -> Checks (TTuple a x)
-          (Checks a, Fails w x y z)       -> Fails 2 (TTuple a x) (TTuple a y) (TTuple a z)
-          (Checks a, Partial x)           -> Partial (TTuple a x)
-          -- Fails a
-          (Fails a b c d, Checks x)       -> Fails 1 (TTuple b x) (TTuple c x) (TTuple d x)
-          (Fails a b c d, Fails w x y z)  -> Fails 1 (TTuple b x) (TTuple c y) (TTuple d z)  -- should put red on both terms (c,y)
-          (Fails a b c d, Partial x)      -> Fails 1 (TTuple b x) (TTuple c x) (TTuple d x)
-          -- Partial a
-          (Partial a, Checks x)           -> Partial (TTuple a x)
-          (Partial a, Fails w x y z)      -> Fails 2 (TTuple a x) (TTuple a y) (TTuple a z)
-          (Partial a, Partial x)          -> Partial (TTuple a x)
-          -- Invalid a or x
-          (Invalid, _)                    -> Invalid
-          (_, Invalid)                    -> Invalid
-          
-      _ -> checkSig sig args
-
-
-
-{-
-  Insert the arguments into the environment, look up the annotated type of this function,
-  and assume this type is correct. This is a temporary feature. More work needs to be done
-  here and it will probably imply implementing type inference.
--}
-typecheckLam : Env -> Term -> CheckResult
-typecheckLam env t =
+typecheck : CheckEnv -> Term -> CheckResult
+typecheck env t =
   case t of
-    Lam a b ->
+    CTerm c ->
+      case c of
+        CInt _  -> Checks TInt
+        CBool _ -> Checks TBool
+
+    BinTerm op t1 t2 ->
       let
-        newEnv =  insertArgs env (Lam a b)
+        type1 = typecheck env t1
+        type2 = typecheck env t2
       in
-        case lookupName newEnv t of --We might want to find a different way of doing this (see comments for lookupName in Environment)
-          Just s ->
-            case lookupType newEnv s of
-              Just vt -> Checks vt --For now, the user's type annotation is assumed to be correct.
-              Nothing -> Invalid
-          Nothing -> Invalid
-    _ -> Invalid -- Shouldn't be reached
+        andThen2 (\ty1 ty2 -> checkBinOp env op ty1 ty2) type1 type2
+    
+    VTerm v ->
+      case Dict.get v env of
+        Just sub -> sub
+        Nothing  -> Invalid
+    
+    Lam name body ->
+      let
+        argType = 
+          case Dict.get name env of
+            Just sub -> sub
+            Nothing  -> Invalid
+        outType = typecheck (Dict.insert name argType env) body
+      in
+        andThen2 (\a o -> Checks (TFun a o)) argType outType
 
-
-{-
-  This function works the same as before except we use the environment directly rather than using substitution.
--}
-typecheckApp : Env -> Term -> CheckResult
-typecheckApp env t =
-  case t of
-    App x y ->
-      case x of
-        Lam w z ->
-          case getTypeSignature y of
-            Just vt ->
-              let newEnv = addOrModify env (True, True) (w, y, vt) in
-                typecheck newEnv z
-            Nothing -> Invalid
-        VTerm v ->
-          let lambda = lookup env v
-            in case lambda of
-              Just (Lam w z) ->
-                case getTypeSignature y of
-                  Just vt ->
-                    let newEnv = addOrModify env (True, True) (w, y, vt) in
-                      typecheck newEnv z
-                  Nothing -> Invalid
-              _ -> Invalid
+    App fn arg ->
+      case fn of
+        Lam name body ->
+          let
+            argType = typecheck env arg
+            outType = typecheck (Dict.insert name argType env) body
+          in
+            andThen2 (\_ o -> Checks o) argType outType
+            --andThen ( \ty -> typecheck (Dict.insert name ty env) body ) argType
+          
         _ -> Invalid
-    _ -> Invalid --Shouldn't be reached
+
+    Tuple t1 t2 ->
+      andThen2 (\c1 c2 -> Checks (TTuple c1 c2)) (typecheck env t1) (typecheck env t2)
+    
+    _ -> Invalid
+
+typecheckAll : List (String, Term) -> CheckEnv
+typecheckAll ts =
+  List.foldl ( \(name,term) env -> Dict.insert name (typecheck env term) env) 
+    Dict.empty ts
+

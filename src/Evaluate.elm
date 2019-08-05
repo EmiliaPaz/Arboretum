@@ -3,10 +3,10 @@ module Evaluate exposing (..)
 import List exposing (..)
 import List.Extra exposing (elemIndex, getAt)
 import Types exposing (..)
-import Environment exposing (Env, lookup, extend, addOrModify)
+import Dict exposing (get, insert)
 
 -- Val is a value that a term can evaluate to
-type Val = VBool Bool | VInt Int | VFun Env String Term | VTuple Val Val 
+type Val = VBool Bool | VInt Int | VFun TermEnv String Term | VTuple Val Val 
 
 boolToString : Bool -> String
 boolToString b =
@@ -39,29 +39,31 @@ termToString t =
     VTerm x ->
       x
 
-    Plus t1 t2 ->
-      "(" ++ (termToString t1) ++ " + " ++ (termToString t2) ++ ")"
+    BinTerm op t1 t2 ->
+      case op of
+        Plus ->
+          "(" ++ (termToString t1) ++ " + " ++ (termToString t2) ++ ")"
 
-    Minus t1 t2 ->
-      "(" ++ (termToString t1) ++ " - " ++ (termToString t2) ++ ")"
+        Minus ->
+          "(" ++ (termToString t1) ++ " - " ++ (termToString t2) ++ ")"
 
-    Times t1 t2 ->
-      "(" ++ (termToString t1) ++ " * " ++ (termToString t2) ++ ")"
+        Times ->
+          "(" ++ (termToString t1) ++ " * " ++ (termToString t2) ++ ")"
 
-    Div t1 t2 ->
-      "(" ++ (termToString t1) ++ " / " ++ (termToString t2) ++ ")"
+        Div ->
+          "(" ++ (termToString t1) ++ " / " ++ (termToString t2) ++ ")"
 
-    Mod t1 t2 ->
-      "(" ++ (termToString t1) ++ " % " ++ (termToString t2) ++ ")"
+        Mod ->
+          "(" ++ (termToString t1) ++ " % " ++ (termToString t2) ++ ")"
 
-    Eq t1 t2 ->
-      "(" ++ (termToString t1) ++ " == " ++ (termToString t2) ++ ")"
+        Eq ->
+          "(" ++ (termToString t1) ++ " == " ++ (termToString t2) ++ ")"
 
-    And t1 t2 ->
-      "(" ++ (termToString t1) ++ " && " ++ (termToString t2) ++ ")"
+        And ->
+          "(" ++ (termToString t1) ++ " && " ++ (termToString t2) ++ ")"
 
-    Or t1 t2 ->
-      "(" ++ (termToString t1) ++ " || " ++ (termToString t2) ++ ")"
+        Or ->
+          "(" ++ (termToString t1) ++ " || " ++ (termToString t2) ++ ")"
 
     Lam t1 t2 ->
       "(\\" ++ t1 ++ " -> " ++ (termToString t2) ++ ")"
@@ -128,7 +130,7 @@ valToTerm v =
     VTuple x y -> Tuple (valToTerm x) (valToTerm y)
 
 -- evaluates a term
-eval : Env -> Term -> Maybe Val
+eval : TermEnv -> Term -> Maybe Val
 eval e t =
   let
     evale = eval e
@@ -139,55 +141,60 @@ eval e t =
         CInt x  -> Just (VInt x)
         CBool x -> Just (VBool x)
 
-    VTerm v ->
-      case lookup e v of
+    VTerm name ->
+      case get name e of
         Just subst -> evale subst
         Nothing    -> Nothing
+    
+    BinTerm op x y ->
+      case op of
+        Plus ->
+          wrapInt ( tryBinFn (+) (tryInt (evale x)) (tryInt (evale y)) )
 
-    Plus x y ->
-      wrapInt ( tryBinFn (+) (tryInt (evale x)) (tryInt (evale y)) )
+        Minus ->
+          wrapInt ( tryBinFn (-) (tryInt (evale x)) (tryInt (evale y)) )
 
-    Minus x y ->
-      wrapInt ( tryBinFn (-) (tryInt (evale x)) (tryInt (evale y)) )
+        Times ->
+          wrapInt ( tryBinFn (*) (tryInt (evale x)) (tryInt (evale y)) )
 
-    Times x y ->
-      wrapInt ( tryBinFn (*) (tryInt (evale x)) (tryInt (evale y)) )
+        Div ->
+          wrapInt ( tryBinFn (//) (tryInt (evale x)) (tryInt (evale y)) )
 
-    Div x y ->
-      wrapInt ( tryBinFn (//) (tryInt (evale x)) (tryInt (evale y)) )
+        Mod ->
+          wrapInt ( tryBinFn (modBy) (tryInt (evale x)) (tryInt (evale y)) )
 
-    Mod x y ->
-      wrapInt ( tryBinFn (modBy) (tryInt (evale y)) (tryInt (evale x)) )
+        Eq ->
+          takeOne
+            ( wrapBool ( tryBinFn (==) (tryInt (evale x)) (tryInt (evale y)) )
+            , wrapBool ( tryBinFn (==) (tryBool (evale x)) (tryBool (evale y)) )
+            )
 
-    Eq x y ->
-      takeOne
-        ( wrapBool ( tryBinFn (==) (tryInt (evale x)) (tryInt (evale y)) )
-        , wrapBool ( tryBinFn (==) (tryBool (evale x)) (tryBool (evale y)) )
-        )
+        And ->
+          wrapBool ( tryBinFn (&&) (tryBool (evale x)) (tryBool (evale y)) )
 
-    And x y ->
-      wrapBool ( tryBinFn (&&) (tryBool (evale x)) (tryBool (evale y)) )
-
-    Or x y ->
-      wrapBool ( tryBinFn (||) (tryBool (evale x)) (tryBool (evale y)) )
+        Or ->
+          wrapBool ( tryBinFn (||) (tryBool (evale x)) (tryBool (evale y)) )
 
     -- Lambda gets evaluated to a closure.
-    Lam x y -> Just (VFun e x y)
-
-    --Same as before, except we use a closure rather than substitution.
-    App x y ->
-      case evale x of
-        Just (VFun e1 a b) ->
-          case evale y of
-            Just w ->
-              let e2 = addOrModify e1 (True, False) (a, valToTerm w, TInt) in
-                eval e2 b
-            _ -> Nothing
-        _ -> Nothing
     
     Tuple x y -> 
           case (evale x, evale y) of
             (Just x2, Just y2) -> Just (VTuple x2 y2)
             _ -> Nothing
 
-    _ -> Nothing
+    Lam name body -> Just (VFun e name body)
+
+    App fn arg ->
+      case evale fn of
+        Just (VFun env name body) ->
+          let e2 = insert name arg env in
+          eval e2 body
+        
+        _ ->
+          Nothing
+    
+    EmptyTree ->
+      Nothing
+    
+    Missing ->
+      Nothing
