@@ -1,4 +1,4 @@
-module Tree exposing (Tree, Children)
+module Tree exposing (Tree(..), Children(..))
 
 type Tree a =
   Tree
