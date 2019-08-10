@@ -1,15 +1,12 @@
 module Render exposing (RenderTree)
 
+import Tree exposing (Tree, Children)
 import Types exposing (Term)
-
-
-type RenderTree = 
-  RenderTree
-    { node: RenderNode
-    , children: Children }
-
-type Children = Children (List RenderTree)
+import Typecheck exposing (CheckResult)
 
 type alias RenderNode =
   { render: Bool
-  , term: Term }
+  , term: Term 
+  , check: CheckResult }
+
+type alias RenderTree = Tree RenderNode

@@ -2,6 +2,7 @@ module Typecheck exposing (CheckResult(..), CheckEnv, typeToString, checkResultT
 import List exposing (..)
 import List.Extra exposing (elemIndex, getAt)
 import Dict exposing (Dict)
+import Tree exposing (Tree, Children)
 import Types exposing (Const(..), BinOp(..), Term(..), VType(..), TermEnv, listToTypeSign, typeSignToList)
 
 
@@ -27,6 +28,12 @@ Invalid : Typechecking failed with no useful diagnostic info
 type CheckResult = Checks VType | Fails Int VType VType VType | Partial VType | Invalid
 
 type alias CheckEnv = Dict String CheckResult
+
+type alias CheckNode =
+  { term: Term
+  , check: CheckResult }
+
+type alias CheckTree = Tree CheckNode
 
 checkResultToString : CheckResult -> String
 checkResultToString r =
@@ -224,6 +231,25 @@ typecheck env t =
       andThen2 (\c1 c2 -> Checks (TTuple c1 c2)) (typecheck env t1) (typecheck env t2)
     
     _ -> Invalid
+
+typecheckExp : CheckEnv -> Term -> VType -> CheckResult
+typecheckExp env term expect =
+  case term of
+    Lam name body ->
+      case expect of
+        TFun arg out ->
+          let
+            outType = typecheck (Dict.insert name (Checks arg) env) body
+          in
+            andThen (
+              \o -> case o == out of
+                True -> Checks (TFun arg o)
+                False -> Invalid) outType
+          
+
+        _ -> Invalid
+
+    _ -> typecheck env term
 
 typecheckAll : List (String, Term) -> CheckEnv
 typecheckAll ts =
