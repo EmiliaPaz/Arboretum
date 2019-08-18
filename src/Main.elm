@@ -10,9 +10,10 @@ import Json.Decode as Decode exposing (Decoder, field, bool, int, string)
 import String exposing (split)
 import Dict exposing (Dict)
 
-import Evaluate
+import Evaluate exposing (Val)
+import Render exposing (RenderTree)
 import Types exposing (..)
-import Typecheck exposing (CheckResult(..), CheckEnv, typecheck, typecheckAll, checkResultToString, typeToString)
+import Typecheck exposing (CheckTree, CheckResult(..), CheckEnv, typecheck, typecheckAll, checkResultToString, typeToString)
 
 
 -- MAIN
@@ -31,7 +32,7 @@ type alias Model =
   , terms : TermEnv
   , checks : CheckEnv
   , annotations : TypeEnv
-  , renderTreeInfos : List RenderTreeInfo
+  , renderInfos : List RenderInfo
   , errorMsg : String
   }
 
@@ -42,7 +43,7 @@ init _ =
     , terms = Dict.empty
     , checks = Dict.empty
     , annotations = Dict.empty
-    , renderTreeInfos = []
+    , renderInfos = []
     , errorMsg = ""
     }
   , Cmd.none )
@@ -67,16 +68,18 @@ update msg model =
         ({ model | content = newContent }, parseLines lines)
 
     IncDepth id ->
-      let
+      {-let
         newRTs = filterUpdate (\x -> x.id == id) (\x -> {x | depth = x.depth + 1}) model.renderTreeInfos
       in
-        ({model | renderTreeInfos = newRTs} , Cmd.none )
+        ({model | renderTreeInfos = newRTs} , Cmd.none )-}
+      (model, Cmd.none)
 
     DecDepth id ->
-      let
+      {-let
         newRTs = filterUpdate (\x -> x.id == id) (\x -> {x | depth = x.depth - 1}) model.renderTreeInfos
       in
-        ({model | renderTreeInfos = newRTs} , Cmd.none )
+        ({model | renderTreeInfos = newRTs} , Cmd.none )-}
+      (model, Cmd.none)
 
     GotAsts r ->
       case r of
@@ -85,9 +88,9 @@ update msg model =
             terms = Dict.fromList (filterTerms ts)
             annotations = Dict.fromList (filterAnnotations ts)
             checks = typecheckAll (filterTerms ts)
-            ris = genRenderInfos 3 terms
+            renderInfos = buildAllRenderInfos terms annotations checks
           in
-            ({ model | terms = terms, checks = checks, renderTreeInfos = ris }
+            ({ model | terms = terms, checks = checks, renderInfos = renderInfos }
             , Cmd.none)
 
         Err e ->
@@ -357,7 +360,8 @@ view model =
          div [class "tree-title-container"]
          [
             h3 [class "css-title"] [text "Derivation Tree:"]
-          , div [class "trees-container"] (printRT model.terms model.checks model.renderTreeInfos)
+          , div [class "trees-container"] (map renderWithUI model.renderInfos)
+
          ]
       ]
     ]
@@ -369,15 +373,15 @@ view model =
 --     []-> [div [class "tkns-div"] [text ""]]
 --     (l::ls) -> [div [class "tkns-div"] [text (Tokenizer.tokenizePrint l)]] ++ (printTknsLBL ls)
 
-renderSummary : TermEnv -> RenderTree -> Html Msg
-renderSummary envr (Node rNode _) =
+renderSummary : Maybe Val -> Html Msg
+renderSummary val =
   div [ class "summary" ]
   [ h1 [ class "summary-title" ] [ text "Summary:" ]
-  , text ( "Evaluation result: " ++ Evaluate.valToString (Evaluate.eval envr rNode.term) )
+  , text ( "Evaluation result: " ++ Evaluate.valToString val )
   ]
 
 
-renderTree : TermEnv -> CheckEnv -> RenderTree -> Html Msg
+{-renderTree : TermEnv -> CheckEnv -> RenderTree -> Html Msg
 renderTree terms checks t =
   let
     newChecks =
@@ -393,10 +397,10 @@ renderTree terms checks t =
         if n.render then
           div [ class "tree-div" ] ( map render children ++ [ renderTerm terms newChecks n.term ] )
         else
-          div [] []
+          div [] []-}
 
 
-renderTerm : TermEnv -> CheckEnv -> Term -> Html Msg
+{-renderTerm : TermEnv -> CheckEnv -> Term -> Html Msg
 renderTerm terms checks t =
   let
     spanClass =
@@ -411,7 +415,7 @@ renderTerm terms checks t =
     [ renderTermInline checkResult t
     , text " : "
     , span [ class spanClass ] [ text (checkResultToString checkResult) ]
-    ]
+    ]-}
 
 -- stringToTerm : String -> Maybe Term
 -- stringToTerm s =
@@ -547,9 +551,14 @@ type alias RenderTreeInfo =
   , term: Term
   , name: String }
 
+type alias RenderInfo =
+  { renderTree: RenderTree
+  , evaluation: Maybe Val
+  , id: Int }
+
 
 -- creates a render tree from a rtInfo and an environment
-genRenderTree2 : RenderTreeInfo -> TermEnv -> RenderTree
+{-genRenderTree2 : RenderTreeInfo -> TermEnv -> RenderTree
 genRenderTree2 rtInfo env =
   genRenderTree rtInfo.depth env rtInfo.term
 
@@ -586,12 +595,12 @@ genRenderTree depth e t =
           , term = t}
 
   in
-    Node n children
+    Node n children-}
 
 
 
 
-printRT : TermEnv -> CheckEnv -> List RenderTreeInfo -> List (Html Msg)
+{-printRT : TermEnv -> CheckEnv -> List RenderTreeInfo -> List (Html Msg)
 printRT terms checks rtInfos =
   case rtInfos of
     [] -> [div [class "tkns-div"] [text ""]]
@@ -614,4 +623,53 @@ printRT terms checks rtInfos =
                                     ]
                                   ]
                               ]
-                      ]] ++ (printRT terms checks rs)
+                      ]] ++ (printRT terms checks rs)-}
+
+{- REFACTOR HERE -}
+buildAllRenderInfos : TermEnv -> TypeEnv -> CheckEnv -> List RenderInfo
+buildAllRenderInfos terms annotations checks =
+  let
+    pairs =
+      terms
+        |> Dict.map (\key term -> (term, typecheck checks term))
+        |> Dict.toList
+        |> map (\(_,snd) -> snd)
+
+    {-pairs =
+      terms
+        |> Dict.map (\key, val -> case Dict.get key checks of
+                      Just check -> Just (val, check)
+                      Nothing -> Nothing)
+        |> Dict.filter (\_, val -> case val of
+                         Just _ -> True
+                         Nothing -> False) 
+        |> Dict.toList-}
+  
+  in
+    List.indexedMap (\i (term, checkTree) -> buildRenderInfo (Evaluate.eval terms term) checkTree 3 i) pairs
+
+
+
+
+buildRenderInfo : Maybe Val -> CheckTree -> Int -> Int -> RenderInfo
+buildRenderInfo val tree depth id =
+  { renderTree = Render.buildRenderTree tree depth
+  , evaluation = val
+  , id = id }
+
+renderWithUI : RenderInfo -> Html Msg
+renderWithUI info =
+  div [ class "flex-container" ]
+    [ div [class "tree-container"] [ Render.render info.renderTree ]
+    , div [ class "ui-div" ]
+      [ renderSummary info.evaluation
+      , h3 [class "css-title"] [text "Depth:"]
+      , div [class "button-container"]
+        [ div [ class "buttons" ]
+              [ button [ onClick (DecDepth info.id) ] [ text "-" ]
+              , text ( String.fromInt 0 )
+              , button [ onClick (IncDepth info.id) ] [ text "+" ]
+              ]
+            ]
+        ]
+    ]

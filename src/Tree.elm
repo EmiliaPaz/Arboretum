@@ -1,8 +1,6 @@
-module Tree exposing (Tree(..), Children(..))
+module Tree exposing (Tree(..))
 
 type Tree a =
   Tree
     { node: a
-    , children: Children a }
-
-type Children a = Children (List (Tree a))
+    , children: List (Tree a) }

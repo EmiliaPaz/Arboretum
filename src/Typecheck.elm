@@ -1,8 +1,8 @@
-module Typecheck exposing (CheckResult(..), CheckEnv, typeToString, checkResultToString, typecheck, typecheckAll)
+module Typecheck exposing (CheckResult(..), CheckEnv, CheckNode, CheckTree, typeToString, checkResultToString, typecheck, typecheckAll)
 import List exposing (..)
 import List.Extra exposing (elemIndex, getAt)
 import Dict exposing (Dict)
-import Tree exposing (Tree(..), Children(..))
+import Tree exposing (Tree(..))
 import Types exposing (Const(..), BinOp(..), Term(..), VType(..), TermEnv, listToTypeSign, typeSignToList)
 
 
@@ -150,6 +150,32 @@ andThen2 fn res1 res2 =
     
     Invalid -> Invalid
 
+andThenTree : (VType -> CheckResult) -> Term -> CheckTree -> CheckTree
+andThenTree fn term tree =
+  let 
+    result = case tree of
+      Tree t -> andThen fn t.node.check
+  in
+    Tree
+      { node =
+        { term = term
+        , check = result }
+      , children = [tree] }
+
+
+andThenTree2 : (VType -> VType -> CheckResult) -> Term -> CheckTree -> CheckTree -> CheckTree
+andThenTree2 fn term tree1 tree2 =
+  let 
+    result = case (tree1, tree2) of
+      (Tree t1, Tree t2) -> andThen2 fn t1.node.check t2.node.check
+  in
+    Tree
+      { node =
+        { term = term
+        , check = result }
+      , children = [tree1, tree2] }
+
+
 
 checkBinOp : CheckEnv -> BinOp -> VType -> VType -> CheckResult
 checkBinOp env op t1 t2 =
@@ -188,30 +214,36 @@ checkBinOp env op t1 t2 =
 getCheck : CheckTree -> CheckResult
 getCheck tree = case tree of
   Tree t -> t.node.check
+
+
+singletonTree : Term -> CheckResult -> CheckTree
+singletonTree term result =
+  Tree
+    { node =
+      { term = term
+      , check = result }
+    , children = []}
     
 
 typecheck : CheckEnv -> Term -> CheckTree
 typecheck env t =
-  let
-    (result, childTerms) =
       case t of
         CTerm c ->
           case c of
-            CInt _  -> (Checks TInt, [])
-            CBool _ -> (Checks TBool, [])
+            CInt _  -> singletonTree t (Checks TInt)
+            CBool _ -> singletonTree t (Checks TBool)
 
         BinTerm op t1 t2 ->
           let
-            type1 = getCheck (typecheck env t1)
-            type2 = getCheck (typecheck env t2)
+            type1 = (typecheck env t1)
+            type2 = (typecheck env t2)
           in
-            (andThen2 (\ty1 ty2 -> checkBinOp env op ty1 ty2) type1 type2
-            , [t1, t2])
+            andThenTree2 (\ty1 ty2 -> checkBinOp env op ty1 ty2) t type1 type2
         
         VTerm v ->
           case Dict.get v env of
-            Just sub -> (sub, [])
-            Nothing  -> (Invalid, [])
+            Just sub -> singletonTree t sub
+            Nothing  -> singletonTree t Invalid
         
         Lam name body ->
           let
@@ -219,35 +251,40 @@ typecheck env t =
               case Dict.get name env of
                 Just sub -> sub
                 Nothing  -> Invalid
-            outType = getCheck (
-              typecheck (Dict.insert name argType env) body )
+            argTree = singletonTree (VTerm name) argType
+            outTree = typecheck (Dict.insert name argType env) body
           in
-            (andThen2 (\a o -> Checks (TFun a o)) argType outType
-            ,[body])
+            andThenTree2 (\a o -> Checks (TFun a o)) t argTree outTree
+            
 
         App fn arg ->
           case fn of
             Lam name body ->
               let
-                argType = getCheck (typecheck env arg)
-                outType = getCheck (typecheck (Dict.insert name argType env) body)
+                argType = (typecheck env arg)
+                fnType = (typecheck (Dict.insert name (getCheck argType) env) fn)
               in
-                (andThen2 (\_ o -> Checks o) argType outType
-                ,[fn,arg])
+                andThenTree2
+                  (\at ft -> case ft of
+                    TFun it ot -> Checks ot
+                    _          -> Invalid) t argType fnType
+
+                
               
-            _ -> (Invalid,[])
+            _ -> singletonTree t Invalid
 
         Tuple t1 t2 ->
-          (andThen2 (\c1 c2 -> Checks (TTuple c1 c2)) (getCheck (typecheck env t1)) (getCheck (typecheck env t2))
-          ,[t1,t2])
+          andThenTree2 (\c1 c2 -> Checks (TTuple c1 c2)) t (typecheck env t1) (typecheck env t2)
+          
         
-        _ -> (Invalid,[])
+        _ -> singletonTree t Invalid
 
+{-
     node = {term = t, check = result}
-    children = Children (map (\ct -> typecheck env ct) childTerms)
+    children = map (\ct -> typecheck env ct) childTerms
 
   in
-    Tree { node = node, children = children}
+    Tree { node = node, children = children}-}
 
 
 {-typecheckExp : CheckEnv -> Term -> VType -> CheckResult
