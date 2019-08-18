@@ -1,7 +1,10 @@
 module Typecheck exposing (CheckResult(..), CheckEnv, CheckNode, CheckTree, typeToString, checkResultToString, typecheck, typecheckAll)
+
 import List exposing (..)
 import List.Extra exposing (elemIndex, getAt)
 import Dict exposing (Dict)
+
+import Stack exposing (Stack)
 import Tree exposing (Tree(..))
 import Types exposing (Const(..), BinOp(..), Term(..), VType(..), TermEnv, listToTypeSign, typeSignToList)
 
@@ -34,6 +37,8 @@ type alias CheckNode =
   , check: CheckResult }
 
 type alias CheckTree = Tree CheckNode
+
+type alias CheckStack = Stack CheckTree
 
 checkResultToString : CheckResult -> String
 checkResultToString r =
@@ -225,59 +230,67 @@ singletonTree term result =
     , children = []}
     
 
-typecheck : CheckEnv -> Term -> CheckTree
-typecheck env t =
-      case t of
-        CTerm c ->
-          case c of
-            CInt _  -> singletonTree t (Checks TInt)
-            CBool _ -> singletonTree t (Checks TBool)
+typecheck : CheckEnv -> CheckStack -> Term -> CheckTree
+typecheck env argStack t =
+  case t of
+    CTerm c ->
+      case c of
+        CInt _  -> singletonTree t (Checks TInt)
+        CBool _ -> singletonTree t (Checks TBool)
 
-        BinTerm op t1 t2 ->
-          let
-            type1 = (typecheck env t1)
-            type2 = (typecheck env t2)
-          in
-            andThenTree2 (\ty1 ty2 -> checkBinOp env op ty1 ty2) t type1 type2
+    BinTerm op t1 t2 ->
+      let
+        type1 = typecheck env argStack t1
+        type2 = typecheck env argStack t2
+      in
+        andThenTree2 (\ty1 ty2 -> checkBinOp env op ty1 ty2) t type1 type2
+    
+    VTerm v ->
+      case Dict.get v env of
+        Just sub -> singletonTree t sub
+        Nothing  -> singletonTree t Invalid
+    
+    Lam name body ->
+      let
+        argTree = 
+          case Stack.peek argStack of
+            Just sub -> sub
+            Nothing  -> singletonTree (VTerm name) Invalid
+        outTree = typecheck (Dict.insert name (getCheck argTree) env) (Stack.pop argStack) body
+      in
+        andThenTree2 (\a o -> Checks (TFun a o)) t argTree outTree
         
-        VTerm v ->
-          case Dict.get v env of
-            Just sub -> singletonTree t sub
-            Nothing  -> singletonTree t Invalid
-        
+
+    App fn arg ->
+      let
+        argTree = typecheck env argStack arg
+        fnTree = typecheck env (Stack.push argTree argStack) fn
+      in
+        andThenTree2
+          (\ft at -> case ft of
+            TFun it ot -> Checks ot
+            _          -> Invalid) t fnTree argTree
+
+      {-case fn of
         Lam name body ->
           let
-            argType = 
-              case Dict.get name env of
-                Just sub -> sub
-                Nothing  -> Invalid
-            argTree = singletonTree (VTerm name) argType
-            outTree = typecheck (Dict.insert name argType env) body
+            argType = (typecheck env arg)
+            fnType = (typecheck (Dict.insert name (getCheck argType) env) fn)
           in
-            andThenTree2 (\a o -> Checks (TFun a o)) t argTree outTree
+            andThenTree2
+              (\ft at -> case ft of
+                TFun it ot -> Checks ot
+                _          -> Invalid) t fnType argType
+
             
-
-        App fn arg ->
-          case fn of
-            Lam name body ->
-              let
-                argType = (typecheck env arg)
-                fnType = (typecheck (Dict.insert name (getCheck argType) env) fn)
-              in
-                andThenTree2
-                  (\at ft -> case ft of
-                    TFun it ot -> Checks ot
-                    _          -> Invalid) t argType fnType
-
-                
-              
-            _ -> singletonTree t Invalid
-
-        Tuple t1 t2 ->
-          andThenTree2 (\c1 c2 -> Checks (TTuple c1 c2)) t (typecheck env t1) (typecheck env t2)
           
-        
-        _ -> singletonTree t Invalid
+        _ -> singletonTree t Invalid-}
+
+    Tuple t1 t2 ->
+      andThenTree2 (\c1 c2 -> Checks (TTuple c1 c2)) t (typecheck env argStack t1) (typecheck env argStack t2)
+      
+    
+    _ -> singletonTree t Invalid
 
 {-
     node = {term = t, check = result}
@@ -308,6 +321,6 @@ typecheckExp env term expect =
 
 typecheckAll : List (String, Term) -> CheckEnv
 typecheckAll ts =
-  List.foldl ( \(name,term) env -> Dict.insert name (getCheck (typecheck env term)) env) 
+  List.foldl ( \(name,term) env -> Dict.insert name (getCheck (typecheck env Stack.empty term)) env) 
     Dict.empty ts
 

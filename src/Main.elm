@@ -12,6 +12,7 @@ import Dict exposing (Dict)
 
 import Evaluate exposing (Val)
 import Render exposing (RenderTree)
+import Stack
 import Types exposing (..)
 import Typecheck exposing (CheckTree, CheckResult(..), CheckEnv, typecheck, typecheckAll, checkResultToString, typeToString)
 
@@ -631,7 +632,7 @@ buildAllRenderInfos terms annotations checks =
   let
     pairs =
       terms
-        |> Dict.map (\key term -> (term, typecheck checks term))
+        |> Dict.map (\key term -> (term, typecheck checks Stack.empty term))
         |> Dict.toList
         |> map (\(_,snd) -> snd)
 
