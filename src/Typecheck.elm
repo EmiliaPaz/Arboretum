@@ -56,68 +56,6 @@ checkResultToString r =
       "Invalid"
 
 
--- checks a function signature `sig` against a list of argument types `args`
-checkSig : List VType -> List CheckResult -> CheckResult
-checkSig sig args =
-  let
-    outTypes =
-      map
-        (\x ->
-          case x of
-            Checks t      -> Just t
-            Fails _ _ _ t -> Just t
-            Partial t     -> Just t
-            Invalid       -> Nothing
-        )
-        args
-
-    checks = map2 (\x y ->
-                    case y of
-                      Just y2  -> x == y2
-                      Nothing -> True
-                  ) sig outTypes
-    {- this line is not correct! it should be `drop (length args) sig`, but
-       won't be possible until our interpreter understands function types as
-       a list of types -}
-    remainder = head (drop (length args) sig)
-    partial = any (\x -> case x of
-                    Checks _ -> False
-                    _        -> True
-                  ) args
-
-    failIndex = elemIndex False checks
-    failExp =
-      case failIndex of
-        Just i  -> getAt i sig
-        Nothing -> Nothing
-    failGot =
-      case failIndex of
-        Just i ->
-          case getAt i outTypes of
-            Just (Just t) -> Just t
-            _             -> Nothing
-        _ -> Nothing
-
-
-  in
-    case remainder of
-      Just r  ->
-        if all (\a -> a) checks then
-          if partial then
-            Partial r
-          else
-            Checks r
-        else
-          case (failIndex, failExp, failGot) of
-            (Just i, Just exp, Just got) ->
-              -- arbitrary decision to 1-index args, discuss?
-              Fails (i + 1) exp got r
-            _ ->
-              Invalid
-
-      Nothing -> Invalid
-
-
 andThen : (VType -> CheckResult) -> CheckResult -> CheckResult
 andThen fn result =
   case result of
@@ -181,7 +119,6 @@ andThenTree2 fn term tree1 tree2 =
       , children = [tree1, tree2] }
 
 
-
 checkBinOp : CheckEnv -> BinOp -> VType -> VType -> CheckResult
 checkBinOp env op t1 t2 =
   let
@@ -230,6 +167,21 @@ singletonTree term result =
     , children = []}
     
 
+{-
+Checks the type of a term in the context of an environment and argument stack.
+
+Why do we return a CheckTree?
+The way typechecking functions is implemented, functions can only recieve
+types if we know the argument type.  For this reason functions only have types
+in the greater context of their surrounding applications, and we need to
+preserve this information when typechecking the largeer expression.
+
+Argument stack?
+The typechecking process keeps track of an argument stack.  Each application
+pushes its argument on to the stack, and each function pops an argument off
+the stack.  This is another consequence of the weirdness of typechecking
+without Hindley-Milner.
+-}
 typecheck : CheckEnv -> CheckStack -> Term -> CheckTree
 typecheck env argStack t =
   case t of
@@ -260,7 +212,6 @@ typecheck env argStack t =
       in
         andThenTree2 (\a o -> Checks (TFun a o)) t argTree outTree
         
-
     App fn arg ->
       let
         argTree = typecheck env argStack arg
@@ -271,54 +222,16 @@ typecheck env argStack t =
             TFun it ot -> Checks ot
             _          -> Invalid) t fnTree argTree
 
-      {-case fn of
-        Lam name body ->
-          let
-            argType = (typecheck env arg)
-            fnType = (typecheck (Dict.insert name (getCheck argType) env) fn)
-          in
-            andThenTree2
-              (\ft at -> case ft of
-                TFun it ot -> Checks ot
-                _          -> Invalid) t fnType argType
-
-            
-          
-        _ -> singletonTree t Invalid-}
-
     Tuple t1 t2 ->
       andThenTree2 (\c1 c2 -> Checks (TTuple c1 c2)) t (typecheck env argStack t1) (typecheck env argStack t2)
       
-    
     _ -> singletonTree t Invalid
 
+
 {-
-    node = {term = t, check = result}
-    children = map (\ct -> typecheck env ct) childTerms
-
-  in
-    Tree { node = node, children = children}-}
-
-
-{-typecheckExp : CheckEnv -> Term -> VType -> CheckResult
-typecheckExp env term expect =
-  case term of
-    Lam name body ->
-      case expect of
-        TFun arg out ->
-          let
-            outType = typecheck (Dict.insert name (Checks arg) env) body
-          in
-            andThen (
-              \o -> case o == out of
-                True -> Checks (TFun arg o)
-                False -> Invalid) outType
-          
-
-        _ -> Invalid
-
-    _ -> typecheck env term-}
-
+Typechecks a list of terms in the order they appear in, accumulating the
+check environment as it goes.
+-}
 typecheckAll : List (String, Term) -> CheckEnv
 typecheckAll ts =
   List.foldl ( \(name,term) env -> Dict.insert name (getCheck (typecheck env Stack.empty term)) env) 
