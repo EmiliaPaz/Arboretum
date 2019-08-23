@@ -14,7 +14,7 @@ import Evaluate exposing (Val)
 import Render exposing (RenderTree)
 import Stack
 import Types exposing (..)
-import Typecheck exposing (CheckTree, CheckResult(..), CheckEnv, typecheck, typecheckAll, checkResultToString, typeToString)
+import Typecheck exposing (CheckTree, CheckResult(..), CheckEnv, TSubst, typecheck, typecheckAll, checkResultToString, typeToString, tsubstToString, check)
 
 
 -- MAIN
@@ -341,17 +341,33 @@ view model =
   }
 
 
-renderSummary : Maybe Val -> Html Msg
-renderSummary val =
-  div [ class "summary" ]
-    [ h1 [ class "summary-title" ] [ text "Summary:" ]
-    , text ( "Evaluation result: " ++ Evaluate.valToString val )
-    ]
+renderSummary : RenderInfo -> Html Msg
+renderSummary info =
+  let
+    typeString = 
+      case info.typecheck of
+        (Just t, _) -> Typecheck.typeToString t
+        (Nothing, _) -> "Error"
+    
+    substString = 
+      case info.typecheck of
+        (_, Just s) -> Typecheck.tsubstToString s
+        (_, Nothing) -> "Error"
+  in
+    div [ class "summary" ]
+      [ h1 [ class "summary-title" ] [ text "Summary:" ]
+      , text ( "Evaluation result: " ++ Evaluate.valToString info.evaluation )
+      , br [] []
+      , text ( "Typecheck: " ++ typeString )
+      , br [] []
+      , text ( "Substitutions: " ++ substString)
+      ]
 
 
 type alias RenderInfo =
   { renderTree: RenderTree
   , evaluation: Maybe Val
+  , typecheck: (Maybe VType, Maybe TSubst)
   , id: Int }
 
 
@@ -365,13 +381,14 @@ buildAllRenderInfos terms annotations checks =
         |> map (\(_,snd) -> snd)
 
   in
-    List.indexedMap (\i (term, checkTree) -> buildRenderInfo (Evaluate.eval terms term) checkTree 3 i) pairs
+    List.indexedMap (\i (term, checkTree) -> buildRenderInfo (Evaluate.eval terms term) (Typecheck.check term) checkTree 3 i) pairs
 
 
-buildRenderInfo : Maybe Val -> CheckTree -> Int -> Int -> RenderInfo
-buildRenderInfo val tree depth id =
+buildRenderInfo : Maybe Val -> (Maybe VType, Maybe TSubst) -> CheckTree -> Int -> Int -> RenderInfo
+buildRenderInfo val ty tree depth id =
   { renderTree = Render.buildRenderTree tree depth
   , evaluation = val
+  , typecheck = ty
   , id = id }
 
 
@@ -380,7 +397,7 @@ renderWithUI info =
   div [ class "flex-container" ]
     [ div [class "tree-container"] [ Render.render info.renderTree ]
     , div [ class "ui-div" ]
-      [ renderSummary info.evaluation
+      [ renderSummary info
       , h3 [class "css-title"] [text "Depth:"]
       , div [class "button-container"]
         [ div [ class "buttons" ]

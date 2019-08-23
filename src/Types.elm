@@ -29,7 +29,7 @@ type Term = CTerm Const | VTerm String | BinTerm BinOp Term Term | Tuple Term Te
 {-
   V(alue)Type is a type that a TreeAssembly term can evaluate to
 -}
-type VType = TBool | TInt | TFun VType VType | TTuple VType VType
+type VType = TVar String | TBool | TInt | TFun VType VType | TTuple VType VType
 
 type alias Var =
   { name: String
@@ -67,6 +67,7 @@ listToTypeSign types =
 typeSignToList : VType -> List VType
 typeSignToList vt =
   case vt of
+    TVar n          -> [TVar n]
     TBool           -> [TBool]
     TInt            -> [TInt]
     TFun vt1 vt2    -> (typeSignToList vt1) ++ (typeSignToList vt2)

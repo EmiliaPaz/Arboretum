@@ -1,22 +1,29 @@
-module Typecheck exposing (CheckResult(..), CheckEnv, CheckNode, CheckTree, typeToString, checkResultToString, typecheck, typecheckAll)
+module Typecheck exposing (CheckResult(..), CheckEnv, CheckNode, CheckTree, TSubst, typeToString, tsubstToString, checkResultToString, typecheck, typecheckAll, unify, check)
 
 import List exposing (..)
-import List.Extra exposing (elemIndex, getAt)
+import List.Extra exposing (elemIndex, getAt, unique)
 import Dict exposing (Dict)
 
 import Stack exposing (Stack)
 import Tree exposing (Tree(..))
-import Types exposing (Const(..), BinOp(..), Term(..), VType(..), TermEnv, listToTypeSign, typeSignToList)
+import Types exposing (Const(..), BinOp(..), Term(..), VType(..), TermEnv, TypeEnv, listToTypeSign, typeSignToList)
 
 
 
 typeToString : VType -> String
 typeToString t =
   case t of
-    TBool -> "Bool"
-    TInt  -> "Int"
+    TBool      -> "Bool"
+    TInt       -> "Int"
+    TVar name  -> "t" ++ name
     TTuple a b -> "Tuple" ++ " " ++ (typeToString a) ++ " " ++ (typeToString b)
-    TFun a b -> (typeToString a) ++ " -> " ++ (typeToString b)
+    TFun a b   -> (typeToString a) ++ " -> " ++ (typeToString b)
+
+tsubstToString : TSubst -> String
+tsubstToString subst =
+  subst
+    |> List.map (\(name, sub) -> "(t" ++ name ++ ": " ++ typeToString sub ++ ") ")
+    |> List.foldr (++) ""
 
 {-
 CheckResult represents the outcome of typechecking a term
@@ -227,6 +234,233 @@ typecheck env argStack t =
       
     _ -> singletonTree t Invalid
 
+
+type alias TSubst = List (String, VType)
+
+
+getOpType : BinOp -> VType
+getOpType op =
+  case op of
+    Plus -> TInt
+    Minus -> TInt
+    Times -> TInt
+    Div -> TInt
+    Mod -> TInt
+    Eq -> TInt
+    And -> TBool
+    Or -> TBool
+
+getResultType : BinOp -> VType
+getResultType op =
+  case op of
+    Plus -> TInt
+    Minus -> TInt
+    Times -> TInt
+    Div -> TInt
+    Mod -> TInt
+    Eq -> TBool
+    And -> TBool
+    Or -> TBool
+
+check : Term -> (Maybe VType, Maybe TSubst)
+check term =
+  let
+    names =
+      List.range 1 1000
+        |> map String.fromInt
+    
+    subst = typecheck2 Dict.empty term (TVar "0") names
+  
+  in
+    ( subst |> Maybe.andThen (\subs -> Just (
+        List.foldl (\sub agg -> apply [sub] agg) (TVar "0") subs
+      ))
+    , subst)
+
+
+{-
+implementation of algorithm M
+-}
+typecheck2 : TypeEnv -> Term -> VType -> List String -> Maybe TSubst
+typecheck2 env term ty names =
+  case term of
+    CTerm c ->
+      case c of
+        CInt _ ->
+          unify ty TInt
+        CBool _ ->
+          unify ty TBool
+
+    BinTerm op t1 t2 ->
+      let
+        opType = getOpType op
+        resType = getResultType op
+      in
+        unify ty resType |> Maybe.andThen (\sub ->
+          typecheck2 env t1 opType names |> Maybe.andThen (\subL ->
+            typecheck2 env t2 opType names |> Maybe.andThen (\subR ->
+              Just (sub ++ subL ++ subR)
+            )
+          )
+        )
+
+    VTerm v ->
+      case Dict.get v env of
+        Just vType -> unify ty vType
+        Nothing    -> Nothing
+
+    Lam argName body ->
+      let
+        (argVarName, remainder) = getNext names
+        (bodyName, remainder2) = getNext remainder
+        argVar = TVar argVarName
+        bodyVar = TVar bodyName
+      in
+        unify ty (TFun argVar bodyVar) |> Maybe.andThen (\sub ->
+          typecheck2 (applyEnv sub (Dict.insert argName argVar env)) body bodyVar remainder2 |> Maybe.andThen (\sub2 ->
+            Just (sub ++ sub2)
+          )
+        )
+    
+    App fn arg ->
+      let
+        (fnNames, argNames) = split names
+        (inName, fnRemainder) = getNext fnNames
+        inVar = TVar inName
+      in
+        typecheck2 env fn (TFun inVar ty) fnRemainder |> Maybe.andThen (\sub ->
+          typecheck2 env fn inVar argNames |> Maybe.andThen (\sub2 ->
+            Just (sub ++ sub2)
+          )
+        )
+
+
+    Tuple t1 t2 ->
+      let
+        (names1, names2) = split names
+        (name1, remainder1) = getNext names1
+        (name2, remainder2) = getNext names2
+        tvar1 = TVar name1
+        tvar2 = TVar name2
+      in
+        unify ty (TTuple tvar1 tvar2) |> Maybe.andThen (\sub ->
+          typecheck2 (applyEnv sub env) t1 tvar1 names1 |> Maybe.andThen (\sub1 ->
+            typecheck2 (applyEnv sub1 (applyEnv sub env)) t2 tvar2 names2 |> Maybe.andThen (\sub2 ->
+              Just (sub ++ sub1 ++ sub2)
+            )
+          )
+        )
+    
+    _ -> Nothing
+
+{-
+Deplorable hack.  Will fix when I get the chance.
+-}
+getNext : List String -> (String, List String)
+getNext names =
+  case names of
+    [] ->
+      ("OUT OF NAMES", [])
+    x::xs ->
+      (x, xs)
+
+
+split : List a -> (List a, List a)
+split vals =
+  case vals of
+    [] ->
+      ([], [])
+    
+    [x] ->
+      ([x], [])
+
+    x::y::zs ->
+      let
+        (xs, ys) = split zs
+      in
+        ([x] ++ xs, [y] ++ ys)
+
+lookup : String -> List (String, a) -> Maybe a
+lookup name xs =
+  xs
+    |> List.filter (\(key, _) -> key == name)
+    |> List.map (\(_, val) -> val)
+    |> List.Extra.getAt 0
+
+
+apply : TSubst -> VType -> VType
+apply subst ty =
+  case ty of
+    TVar name -> 
+      case lookup name subst of
+        Just s  -> apply subst s
+        Nothing -> ty
+
+    TInt -> TInt
+    TBool -> TBool
+    TFun x y -> TFun (apply subst x) (apply subst y)
+    TTuple x y -> TTuple (apply subst x) (apply subst y)
+
+
+applyEnv : TSubst -> TypeEnv -> TypeEnv
+applyEnv subst env =
+  Dict.map (\_ ty -> apply subst ty) env
+
+
+tvs : VType -> List String
+tvs ty =
+  case ty of
+    TVar name -> [name]
+    TBool  -> []
+    TInt   -> []
+    TFun x y -> unique (tvs x ++ tvs y)
+    TTuple x y -> unique (tvs x ++ tvs y)
+
+
+unifyBin : VType -> VType -> VType -> VType -> Maybe TSubst
+unifyBin x1 y1 x2 y2 =
+  unify x1 x2 |> Maybe.andThen (\subX ->
+    unify (apply subX y1) (apply subX y2) |> Maybe.andThen (\subY ->
+      Just (subX ++ subY)
+    )
+  )
+
+
+unify : VType -> VType -> Maybe TSubst
+unify ty1 ty2 =
+  case (ty1, ty2) of
+    (TVar v, TVar w) ->
+      if v == w then
+        Just []
+      else
+        Just [(v, ty2)]
+    
+    (TVar v, _) ->
+      if not (List.member v (tvs ty2)) then
+        Just [(v, ty2)]
+      else
+        Nothing
+    
+    (_, TVar w) ->
+      if not (List.member w (tvs ty1)) then
+        Just [(w, ty1)]
+      else
+        Nothing
+
+    (TInt, TInt) ->
+      Just []
+    
+    (TBool, TBool) ->
+      Just []
+
+    (TFun x1 y1, TFun x2 y2) ->
+      unifyBin x1 y1 x2 y2
+    
+    (TTuple x1 y1, TTuple x2 y2) ->
+      unifyBin x1 y1 x2 y2
+    
+    (_, _) ->
+      Nothing
 
 {-
 Typechecks a list of terms in the order they appear in, accumulating the
