@@ -262,7 +262,7 @@ getResultType op =
     And -> TBool
     Or -> TBool
 
-check : Term -> Maybe (VType, TSubst)
+check : Term -> (CallTree, Maybe VType)
 check term =
   let
     names =
@@ -270,10 +270,13 @@ check term =
         |> map String.fromInt
         |> map (\n -> "t" ++ n)
   
+    tree = typecheck2 Dict.empty term (TVar "t0") names
   in
-    typecheck2 Dict.empty term (TVar "t0") names |> Maybe.andThen (\sub ->
-      Just (apply sub (TVar "t0"), sub)
-    ) 
+    ( tree
+    , tree 
+      |> getSubs
+      |> Maybe.andThen (\subs -> Just (apply subs (TVar "t0")))
+    )
 
 
 type alias CallNode =
@@ -284,6 +287,10 @@ type alias CallNode =
   }
 
 type alias CallTree = Tree CallNode
+
+getSubs : CallTree -> Maybe TSubst
+getSubs (Tree t) =
+  t.node.subs
 
 {-
 implementation of algorithm M
@@ -306,13 +313,20 @@ typecheck2 env term ty names =
             resType = getResultType op
           in
             {- TODO: fix environments to carry new substitutions -}
-            unify ty resType |> Maybe.andThen (\sub ->
-              typecheck2 env t1 opType names |> Maybe.andThen (\leftTree ->
-                typecheck2 env t2 opType names |> Maybe.andThen (\rightTree ->
-                  (Just (sub ++ leftTree.subs ++ rightTree.subs), [leftTree, rightTree])
-                )
-              )
-            )
+            case unify ty resType of
+              Just sub ->
+                let 
+                  leftTree = typecheck2 env t1 opType names
+                  rightTree = typecheck2 env t2 opType names
+                in
+                  case (getSubs leftTree, getSubs rightTree) of
+                    (Just ls, Just rs) ->
+                      (Just (sub ++ ls ++ rs), [leftTree, rightTree])
+                    _ ->
+                      (Nothing, [leftTree, rightTree])
+
+              Nothing ->
+                (Nothing, [])
 
         VTerm v ->
           case Dict.get v env of
@@ -326,25 +340,43 @@ typecheck2 env term ty names =
             argVar = TVar argVarName
             bodyVar = TVar bodyName
           in
-            unify ty (TFun argVar bodyVar) |> Maybe.andThen (\sub ->
-              typecheck2 (applyEnv sub (Dict.insert argName argVar env)) body bodyVar remainder2 |> Maybe.andThen (\fnTree ->
-                (Just (sub ++ fnTree.subs), [fnTree])
-              )
-            )
+            case unify ty (TFun argVar bodyVar) of
+              Just sub ->
+                let
+                  fnTree = typecheck2 (applyEnv sub (Dict.insert argName argVar env)) body bodyVar remainder2
+                in
+                  ( fnTree
+                    |> getSubs
+                    |> Maybe.andThen (\fnSubs -> (Just (sub ++ fnSubs)))
+                  , [fnTree])
+              
+              Nothing ->
+                (Nothing, [])
         
         App fn arg ->
           let
             (fnNames, argNames) = split names
             (inName, fnRemainder) = getNext fnNames
             inVar = TVar inName
-          in
-            typecheck2 env fn (TFun inVar ty) fnRemainder |> Maybe.andThen (\sub ->
-              typecheck2 (applyEnv sub env) arg (apply sub inVar) argNames |> Maybe.andThen (\sub2 ->
-                Just (sub ++ sub2)
-              )
-            )
 
-        Tuple t1 t2 ->
+            fnTree = typecheck2 env fn (TFun inVar ty) fnRemainder
+            argTree = getSubs fnTree |> Maybe.andThen (\sub -> Just (typecheck2 (applyEnv sub env) arg (apply sub inVar) argNames))
+
+            appSubs = 
+              case (getSubs fnTree, argTree |> Maybe.andThen getSubs) of
+                (Just fnSubs, Just argSubs) ->
+                  Just (fnSubs ++ argSubs)
+                
+                _ ->
+                  Nothing
+
+            trees = case argTree of
+              Just t  -> [fnTree, t]
+              Nothing -> [fnTree]
+          in
+            (appSubs, trees)
+
+        {-Tuple t1 t2 ->
           let
             (names1, names2) = split names
             (name1, remainder1) = getNext names1
@@ -358,9 +390,9 @@ typecheck2 env term ty names =
                   Just (sub ++ sub1 ++ sub2)
                 )
               )
-            )
+            )-}
         
-        _ -> Nothing
+        _ -> (Nothing, [])
 
   in
     Tree 
