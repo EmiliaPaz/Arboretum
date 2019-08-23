@@ -330,7 +330,7 @@ typecheck2 env term ty names =
 
         VTerm v ->
           case Dict.get v env of
-            Just vType -> (unify vType ty, [])
+            Just vType -> (unify ty vType, [])
             Nothing    -> (Nothing, [])
 
         Lam argName body ->
