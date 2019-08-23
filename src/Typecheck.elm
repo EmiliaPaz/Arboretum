@@ -1,4 +1,4 @@
-module Typecheck exposing (CheckResult(..), CheckEnv, CheckNode, CheckTree, TSubst, CallTree, typeToString, tsubstToString, checkResultToString, typecheck, typecheckAll, unify, check)
+module Typecheck exposing (CheckResult(..), CheckEnv, CheckNode, CheckTree, TSubst, CallTree, typeToString, tsubstToString, checkResultToString, typecheck, typecheckAll, unify, check, apply)
 
 import List exposing (..)
 import List.Extra exposing (elemIndex, getAt, unique)

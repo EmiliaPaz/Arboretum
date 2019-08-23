@@ -7,7 +7,7 @@ import List exposing (map)
 import Evaluate exposing (Val)
 import Tree exposing (Tree(..))
 import Types exposing (Term(..), BinOp(..))
-import Typecheck exposing (CheckResult(..), CheckTree, CheckNode, CallTree, typeToString, checkResultToString, tsubstToString)
+import Typecheck exposing (CheckResult(..), CheckTree, CheckNode, CallTree, TSubst, typeToString, checkResultToString, tsubstToString)
 
 
 type alias RenderTree = Tree RenderNode
@@ -167,12 +167,12 @@ renderErrorDiv c =
     _ -> div [class "error-details"] []
 
 
-renderCallTree : CallTree -> Html msg
-renderCallTree (Tree tree) =
+renderCallTreeDebug : CallTree -> Html msg
+renderCallTreeDebug (Tree tree) =
   let
     subsString = case tree.node.subs of
       Just s  -> tsubstToString s
-      Nothing -> "No Substitution"
+      Nothing -> "Unification failed"
 
   in
     div [ class "tree-div" ]
@@ -181,3 +181,28 @@ renderCallTree (Tree tree) =
           [ text (Evaluate.termToString tree.node.term ++ " : " ++ typeToString tree.node.inType ++ ", " ++ subsString)]
         ]
       )
+
+renderCallTree : CallTree -> Html msg
+renderCallTree (Tree tree) =
+  renderCallTreeRec (Tree tree) (Maybe.withDefault [] tree.node.subs)
+
+renderCallTreeRec : CallTree -> TSubst -> Html msg
+renderCallTreeRec (Tree tree) subs =
+  let
+    typeString =
+      case tree.node.subs of
+        Just _ ->
+          Typecheck.apply subs tree.node.inType
+            |> typeToString
+        
+        Nothing ->
+          "Unification Failed"
+
+  in
+    div [ class "tree-div" ]
+      ( map renderCallTree tree.children ++
+        [ div [ class "text-div" ]
+          [ text (Evaluate.termToString tree.node.term ++ " : " ++ typeString) ]
+        ]
+      )
+
