@@ -1,4 +1,4 @@
-module Render exposing (RenderTree, buildRenderTree, render)
+module Render exposing (RenderTree, buildRenderTree, render, renderCallTree)
 
 import Html exposing (Html, button, div, text, h1, h3, input, span, textarea, br, p)
 import Html.Attributes exposing (..)
@@ -7,7 +7,7 @@ import List exposing (map)
 import Evaluate exposing (Val)
 import Tree exposing (Tree(..))
 import Types exposing (Term(..), BinOp(..))
-import Typecheck exposing (CheckResult(..), CheckTree, CheckNode, typeToString, checkResultToString)
+import Typecheck exposing (CheckResult(..), CheckTree, CheckNode, CallTree, typeToString, checkResultToString, tsubstToString)
 
 
 type alias RenderTree = Tree RenderNode
@@ -16,8 +16,6 @@ type alias RenderNode =
   { render: Bool
   , term: Term 
   , check: CheckResult }
-
-
 
 
 buildRenderTree : CheckTree -> Int -> RenderTree
@@ -167,3 +165,19 @@ renderErrorDiv c =
         div [class "error-details"] [ text ("Expected: " ++ expStr), br [] [], text ("Got: " ++ gotStr) ]
 
     _ -> div [class "error-details"] []
+
+
+renderCallTree : CallTree -> Html msg
+renderCallTree (Tree tree) =
+  let
+    subsString = case tree.node.subs of
+      Just s  -> tsubstToString s
+      Nothing -> "No Substitution"
+
+  in
+    div [ class "tree-div" ]
+      ( map renderCallTree tree.children ++
+        [ div [ class "text-div" ]
+          [ text (Evaluate.termToString tree.node.term ++ " : " ++ typeToString tree.node.inType ++ ", " ++ subsString)]
+        ]
+      )

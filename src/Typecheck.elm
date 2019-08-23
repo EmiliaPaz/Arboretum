@@ -1,4 +1,4 @@
-module Typecheck exposing (CheckResult(..), CheckEnv, CheckNode, CheckTree, TSubst, typeToString, tsubstToString, checkResultToString, typecheck, typecheckAll, unify, check)
+module Typecheck exposing (CheckResult(..), CheckEnv, CheckNode, CheckTree, TSubst, CallTree, typeToString, tsubstToString, checkResultToString, typecheck, typecheckAll, unify, check)
 
 import List exposing (..)
 import List.Extra exposing (elemIndex, getAt, unique)
@@ -330,7 +330,7 @@ typecheck2 env term ty names =
 
         VTerm v ->
           case Dict.get v env of
-            Just vType -> (unify ty vType, [])
+            Just vType -> (unify vType ty, [])
             Nothing    -> (Nothing, [])
 
         Lam argName body ->
@@ -343,7 +343,7 @@ typecheck2 env term ty names =
             case unify ty (TFun argVar bodyVar) of
               Just sub ->
                 let
-                  fnTree = typecheck2 (applyEnv sub (Dict.insert argName argVar env)) body bodyVar remainder2
+                  fnTree = typecheck2 (applyEnv sub (Dict.insert argName argVar env)) body (apply sub bodyVar) remainder2
                 in
                   ( fnTree
                     |> getSubs

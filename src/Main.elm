@@ -11,10 +11,11 @@ import String exposing (split)
 import Dict exposing (Dict)
 
 import Evaluate exposing (Val)
-import Render exposing (RenderTree)
+import Render exposing (RenderTree, renderCallTree)
 import Stack
+import Tree exposing (Tree)
 import Types exposing (..)
-import Typecheck exposing (CheckTree, CheckResult(..), CheckEnv, TSubst, typecheck, typecheckAll, checkResultToString, typeToString, tsubstToString, check)
+import Typecheck exposing (CheckTree, CheckResult(..), CheckEnv, TSubst, CallTree, typecheck, typecheckAll, checkResultToString, typeToString, tsubstToString, check)
 
 
 -- MAIN
@@ -345,14 +346,15 @@ renderSummary : RenderInfo -> Html Msg
 renderSummary info =
   let
     typeString = 
-      case info.typecheck of
-        Just (t, _) -> Typecheck.typeToString t
+      case info.typecheck.result of
+        Just t -> Typecheck.typeToString t
         Nothing -> "Error"
     
     substString = 
-      case info.typecheck of
-        Just (_, s) -> Typecheck.tsubstToString s
-        Nothing -> "Error"
+      case info.typecheck.tree of
+        Tree.Tree t -> case t.node.subs of
+          Just s -> Typecheck.tsubstToString s
+          Nothing -> "Error"
   in
     div [ class "summary" ]
       [ h1 [ class "summary-title" ] [ text "Summary:" ]
@@ -367,7 +369,7 @@ renderSummary info =
 type alias RenderInfo =
   { renderTree: RenderTree
   , evaluation: Maybe Val
-  , typecheck: Maybe (VType, TSubst)
+  , typecheck: {tree: CallTree, result: Maybe VType }
   , id: Int }
 
 
@@ -384,18 +386,18 @@ buildAllRenderInfos terms annotations checks =
     List.indexedMap (\i (term, checkTree) -> buildRenderInfo (Evaluate.eval terms term) (Typecheck.check term) checkTree 3 i) pairs
 
 
-buildRenderInfo : Maybe Val -> Maybe (VType, TSubst) -> CheckTree -> Int -> Int -> RenderInfo
-buildRenderInfo val ty tree depth id =
+buildRenderInfo : Maybe Val -> (CallTree, Maybe VType) -> CheckTree -> Int -> Int -> RenderInfo
+buildRenderInfo val (callTree, result) tree depth id =
   { renderTree = Render.buildRenderTree tree depth
   , evaluation = val
-  , typecheck = ty
+  , typecheck = {tree = callTree, result = result}
   , id = id }
 
 
 renderWithUI : RenderInfo -> Html Msg
 renderWithUI info =
   div [ class "flex-container" ]
-    [ div [class "tree-container"] [ Render.render info.renderTree ]
+    [ div [class "tree-container"] [ renderCallTree info.typecheck.tree ]
     , div [ class "ui-div" ]
       [ renderSummary info
       , h3 [class "css-title"] [text "Depth:"]
