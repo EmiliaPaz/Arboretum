@@ -15,14 +15,14 @@ typeToString t =
   case t of
     TBool      -> "Bool"
     TInt       -> "Int"
-    TVar name  -> "t" ++ name
+    TVar name  -> name
     TTuple a b -> "Tuple" ++ " " ++ (typeToString a) ++ " " ++ (typeToString b)
     TFun a b   -> (typeToString a) ++ " -> " ++ (typeToString b)
 
 tsubstToString : TSubst -> String
 tsubstToString subst =
   subst
-    |> List.map (\(name, sub) -> "(t" ++ name ++ ": " ++ typeToString sub ++ ") ")
+    |> List.map (\(name, sub) -> "(" ++ name ++ ": " ++ typeToString sub ++ ") ")
     |> List.foldr (++) ""
 
 {-
@@ -262,96 +262,116 @@ getResultType op =
     And -> TBool
     Or -> TBool
 
-check : Term -> (Maybe VType, Maybe TSubst)
+check : Term -> Maybe (VType, TSubst)
 check term =
   let
     names =
       List.range 1 1000
         |> map String.fromInt
-    
-    subst = typecheck2 Dict.empty term (TVar "0") names
+        |> map (\n -> "t" ++ n)
   
   in
-    ( subst |> Maybe.andThen (\subs -> Just (
-        List.foldl (\sub agg -> apply [sub] agg) (TVar "0") subs
-      ))
-    , subst)
+    typecheck2 Dict.empty term (TVar "t0") names |> Maybe.andThen (\sub ->
+      Just (apply sub (TVar "t0"), sub)
+    ) 
 
+
+type alias CallNode =
+  { env: TypeEnv
+  , term: Term
+  , inType: VType
+  , subs: Maybe TSubst
+  }
+
+type alias CallTree = Tree CallNode
 
 {-
 implementation of algorithm M
 -}
-typecheck2 : TypeEnv -> Term -> VType -> List String -> Maybe TSubst
+typecheck2 : TypeEnv -> Term -> VType -> List String -> CallTree
 typecheck2 env term ty names =
-  case term of
-    CTerm c ->
-      case c of
-        CInt _ ->
-          unify ty TInt
-        CBool _ ->
-          unify ty TBool
+  let
+    (subs, childTrees) =
+      case term of
+        CTerm c ->
+          case c of
+            CInt _ ->
+              (unify ty TInt, [])
+            CBool _ ->
+              (unify ty TBool, [])
 
-    BinTerm op t1 t2 ->
-      let
-        opType = getOpType op
-        resType = getResultType op
-      in
-        unify ty resType |> Maybe.andThen (\sub ->
-          typecheck2 env t1 opType names |> Maybe.andThen (\subL ->
-            typecheck2 env t2 opType names |> Maybe.andThen (\subR ->
-              Just (sub ++ subL ++ subR)
+        BinTerm op t1 t2 ->
+          let
+            opType = getOpType op
+            resType = getResultType op
+          in
+            {- TODO: fix environments to carry new substitutions -}
+            unify ty resType |> Maybe.andThen (\sub ->
+              typecheck2 env t1 opType names |> Maybe.andThen (\leftTree ->
+                typecheck2 env t2 opType names |> Maybe.andThen (\rightTree ->
+                  (Just (sub ++ leftTree.subs ++ rightTree.subs), [leftTree, rightTree])
+                )
+              )
             )
-          )
-        )
 
-    VTerm v ->
-      case Dict.get v env of
-        Just vType -> unify ty vType
-        Nothing    -> Nothing
+        VTerm v ->
+          case Dict.get v env of
+            Just vType -> (unify ty vType, [])
+            Nothing    -> (Nothing, [])
 
-    Lam argName body ->
-      let
-        (argVarName, remainder) = getNext names
-        (bodyName, remainder2) = getNext remainder
-        argVar = TVar argVarName
-        bodyVar = TVar bodyName
-      in
-        unify ty (TFun argVar bodyVar) |> Maybe.andThen (\sub ->
-          typecheck2 (applyEnv sub (Dict.insert argName argVar env)) body bodyVar remainder2 |> Maybe.andThen (\sub2 ->
-            Just (sub ++ sub2)
-          )
-        )
-    
-    App fn arg ->
-      let
-        (fnNames, argNames) = split names
-        (inName, fnRemainder) = getNext fnNames
-        inVar = TVar inName
-      in
-        typecheck2 env fn (TFun inVar ty) fnRemainder |> Maybe.andThen (\sub ->
-          typecheck2 env fn inVar argNames |> Maybe.andThen (\sub2 ->
-            Just (sub ++ sub2)
-          )
-        )
-
-
-    Tuple t1 t2 ->
-      let
-        (names1, names2) = split names
-        (name1, remainder1) = getNext names1
-        (name2, remainder2) = getNext names2
-        tvar1 = TVar name1
-        tvar2 = TVar name2
-      in
-        unify ty (TTuple tvar1 tvar2) |> Maybe.andThen (\sub ->
-          typecheck2 (applyEnv sub env) t1 tvar1 names1 |> Maybe.andThen (\sub1 ->
-            typecheck2 (applyEnv sub1 (applyEnv sub env)) t2 tvar2 names2 |> Maybe.andThen (\sub2 ->
-              Just (sub ++ sub1 ++ sub2)
+        Lam argName body ->
+          let
+            (argVarName, remainder) = getNext names
+            (bodyName, remainder2) = getNext remainder
+            argVar = TVar argVarName
+            bodyVar = TVar bodyName
+          in
+            unify ty (TFun argVar bodyVar) |> Maybe.andThen (\sub ->
+              typecheck2 (applyEnv sub (Dict.insert argName argVar env)) body bodyVar remainder2 |> Maybe.andThen (\fnTree ->
+                (Just (sub ++ fnTree.subs), [fnTree])
+              )
             )
-          )
-        )
-    
-    _ -> Nothing
+        
+        App fn arg ->
+          let
+            (fnNames, argNames) = split names
+            (inName, fnRemainder) = getNext fnNames
+            inVar = TVar inName
+          in
+            typecheck2 env fn (TFun inVar ty) fnRemainder |> Maybe.andThen (\sub ->
+              typecheck2 (applyEnv sub env) arg (apply sub inVar) argNames |> Maybe.andThen (\sub2 ->
+                Just (sub ++ sub2)
+              )
+            )
+
+        Tuple t1 t2 ->
+          let
+            (names1, names2) = split names
+            (name1, remainder1) = getNext names1
+            (name2, remainder2) = getNext names2
+            tvar1 = TVar name1
+            tvar2 = TVar name2
+          in
+            unify ty (TTuple tvar1 tvar2) |> Maybe.andThen (\sub ->
+              typecheck2 (applyEnv sub env) t1 tvar1 names1 |> Maybe.andThen (\sub1 ->
+                typecheck2 (applyEnv sub1 (applyEnv sub env)) t2 tvar2 names2 |> Maybe.andThen (\sub2 ->
+                  Just (sub ++ sub1 ++ sub2)
+                )
+              )
+            )
+        
+        _ -> Nothing
+
+  in
+    Tree 
+      { node = 
+        { env = env
+        , term = term
+        , inType = ty
+        , subs = subs
+        }
+      , children = childTrees
+      }
 
 {-
 Deplorable hack.  Will fix when I get the chance.

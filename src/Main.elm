@@ -346,13 +346,13 @@ renderSummary info =
   let
     typeString = 
       case info.typecheck of
-        (Just t, _) -> Typecheck.typeToString t
-        (Nothing, _) -> "Error"
+        Just (t, _) -> Typecheck.typeToString t
+        Nothing -> "Error"
     
     substString = 
       case info.typecheck of
-        (_, Just s) -> Typecheck.tsubstToString s
-        (_, Nothing) -> "Error"
+        Just (_, s) -> Typecheck.tsubstToString s
+        Nothing -> "Error"
   in
     div [ class "summary" ]
       [ h1 [ class "summary-title" ] [ text "Summary:" ]
@@ -367,7 +367,7 @@ renderSummary info =
 type alias RenderInfo =
   { renderTree: RenderTree
   , evaluation: Maybe Val
-  , typecheck: (Maybe VType, Maybe TSubst)
+  , typecheck: Maybe (VType, TSubst)
   , id: Int }
 
 
@@ -384,7 +384,7 @@ buildAllRenderInfos terms annotations checks =
     List.indexedMap (\i (term, checkTree) -> buildRenderInfo (Evaluate.eval terms term) (Typecheck.check term) checkTree 3 i) pairs
 
 
-buildRenderInfo : Maybe Val -> (Maybe VType, Maybe TSubst) -> CheckTree -> Int -> Int -> RenderInfo
+buildRenderInfo : Maybe Val -> Maybe (VType, TSubst) -> CheckTree -> Int -> Int -> RenderInfo
 buildRenderInfo val ty tree depth id =
   { renderTree = Render.buildRenderTree tree depth
   , evaluation = val
