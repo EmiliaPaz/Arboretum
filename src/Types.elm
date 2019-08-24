@@ -17,7 +17,7 @@ type BinOp = Plus | Minus | Times | Div | Mod | Eq | And | Or
 type Const = CBool Bool | CInt Int
 
 type Term = CTerm Const | VTerm String | BinTerm BinOp Term Term | Tuple Term Term
-            | Lam String Term | App Term Term | Missing | EmptyTree
+            | Lam String Term | App Term Term
 
 {-
   V(alue)Type is a type that a TreeAssembly term can evaluate to
