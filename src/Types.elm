@@ -12,13 +12,6 @@ type TokTSC = TTSCInt TokTSCInt | TTSCBool TokTSCBool
 type TokTSCInt = TokPlus | TokMinus | TokTimes
 type TokTSCBool = TokEq | TokAnd | TokOr
 
-{-
-type Const = CBool Bool | CInt Int
-type Term = CTerm Const | VTerm String | Plus Term Term | Minus Term Term | Times Term Term
-              | Div Term Term | Mod Term Term | Eq Term Term | And Term Term | Or Term Term
-              | Lam String Term | App Term Term |  Tuple Term Term | MissingInt | MissingBool | Missing | EmptyTree
--}
-
 type BinOp = Plus | Minus | Times | Div | Mod | Eq | And | Or
 
 type Const = CBool Bool | CInt Int

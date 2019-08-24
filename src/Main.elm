@@ -15,7 +15,7 @@ import Render exposing (RenderTree, renderCallTree)
 import Stack
 import Tree exposing (Tree)
 import Types exposing (..)
-import Typecheck exposing (CheckTree, CheckResult(..), CheckEnv, TSubst, CallTree, typecheck, typecheckAll, checkResultToString, typeToString, tsubstToString, check)
+import Typecheck exposing (CheckTree, CheckResult(..), CheckEnv, TSubst, CallTree, typecheck, typecheckAll, checkResultToString, typeToString, tsubstToString)
 
 
 -- MAIN
@@ -85,12 +85,9 @@ update msg model =
       case r of
         Ok ts ->
           let
-            terms = Dict.fromList (filterTerms ts)
-            annotations = Dict.fromList (filterAnnotations ts)
-            checks = typecheckAll (filterTerms ts)
-            renderInfos = buildAllRenderInfos terms annotations checks
+            renderInfos = buildAllRenderInfos (filterTerms ts)
           in
-            ({ model | terms = terms, checks = checks, renderInfos = renderInfos }
+            ({ model | renderInfos = renderInfos }
             , Cmd.none)
 
         Err e ->
@@ -346,12 +343,12 @@ renderSummary : RenderInfo -> Html Msg
 renderSummary info =
   let
     typeString = 
-      case info.typecheck.result of
+      case Typecheck.finalType info.typecheck of
         Just t -> Typecheck.typeToString t
         Nothing -> "Error"
     
     substString = 
-      case info.typecheck.tree of
+      case info.typecheck of
         Tree.Tree t -> case t.node.subs of
           Just s -> Typecheck.tsubstToString s
           Nothing -> "Error"
@@ -367,46 +364,66 @@ renderSummary info =
 
 
 type alias RenderInfo =
-  { renderTree: RenderTree
+  { name: String
+  , term: Term
   , evaluation: Maybe Val
-  , typecheck: {tree: CallTree, result: Maybe VType }
+  , typecheck: CallTree
   , id: Int }
 
 
-buildAllRenderInfos : TermEnv -> TypeEnv -> CheckEnv -> List RenderInfo
+buildAllRenderInfos : List (String, Term) -> List RenderInfo
+buildAllRenderInfos terms =
+  let
+    termEnv = List.foldl (\(name, term) env -> Dict.insert name term env) Dict.empty terms
+
+    vals = List.map (\(name, term) -> Evaluate.eval termEnv term) terms
+    checks = Typecheck.typecheckAll terms
+  in
+    List.map3 (\t v c -> (t, v, c)) terms vals checks
+      |> List.indexedMap (\i ((name, term), val, check) ->
+          { name = name
+          , term = term
+          , evaluation = val
+          , typecheck = check 
+          , id = i
+          }
+          )
+
+
+{-buildAllRenderInfos : TermEnv -> TypeEnv -> TypeEnv -> List RenderInfo
 buildAllRenderInfos terms annotations checks =
   let
     pairs =
       terms
-        |> Dict.map (\key term -> (term, typecheck checks Stack.empty term))
+        |> Dict.map (\key term -> (term, ))
         |> Dict.toList
         |> map (\(_,snd) -> snd)
 
   in
-    List.indexedMap (\i (term, checkTree) -> buildRenderInfo (Evaluate.eval terms term) (Typecheck.check term) checkTree 3 i) pairs
+    List.indexedMap (\i (term, checkTree) -> buildRenderInfo (Evaluate.eval terms term) (Typecheck.check term) checkTree 3 i) pairs-}
 
 
-buildRenderInfo : Maybe Val -> (CallTree, Maybe VType) -> CheckTree -> Int -> Int -> RenderInfo
+{-buildRenderInfo : Maybe Val -> (CallTree, Maybe VType) -> CheckTree -> Int -> Int -> RenderInfo
 buildRenderInfo val (callTree, result) tree depth id =
   { renderTree = Render.buildRenderTree tree depth
   , evaluation = val
   , typecheck = {tree = callTree, result = result}
-  , id = id }
+  , id = id }-}
 
 
 renderWithUI : RenderInfo -> Html Msg
 renderWithUI info =
   div [ class "flex-container" ]
-    [ div [class "tree-container"] [ renderCallTree info.typecheck.tree ]
+    [ div [class "tree-container"] [ renderCallTree info.typecheck ]
     , div [ class "ui-div" ]
       [ renderSummary info
       , h3 [class "css-title"] [text "Depth:"]
       , div [class "button-container"]
         [ div [ class "buttons" ]
-              [ button [ onClick (DecDepth info.id) ] [ text "-" ]
-              , text ( String.fromInt 0 )
-              , button [ onClick (IncDepth info.id) ] [ text "+" ]
-              ]
-            ]
+          [ button [ onClick (DecDepth info.id) ] [ text "-" ]
+          , text ( String.fromInt 0 )
+          , button [ onClick (IncDepth info.id) ] [ text "+" ]
+          ]
         ]
+      ]
     ]

@@ -1,4 +1,4 @@
-module Typecheck exposing (CheckResult(..), CheckEnv, CheckNode, CheckTree, TSubst, CallTree, typeToString, tsubstToString, checkResultToString, typecheck, typecheckAll, unify, check, apply)
+module Typecheck exposing (CheckResult(..), CheckEnv, CheckNode, CheckTree, TSubst, CallTree, typeToString, tsubstToString, checkResultToString, typecheck, typecheckAll, unify, apply, finalType)
 
 import List exposing (..)
 import List.Extra exposing (elemIndex, getAt, unique)
@@ -160,80 +160,6 @@ checkBinOp env op t1 t2 =
       Fails 1 operandType t1 resultType
 
 
-getCheck : CheckTree -> CheckResult
-getCheck tree = case tree of
-  Tree t -> t.node.check
-
-
-singletonTree : Term -> CheckResult -> CheckTree
-singletonTree term result =
-  Tree
-    { node =
-      { term = term
-      , check = result }
-    , children = []}
-    
-
-{-
-Checks the type of a term in the context of an environment and argument stack.
-
-Why do we return a CheckTree?
-The way typechecking functions is implemented, functions can only recieve
-types if we know the argument type.  For this reason functions only have types
-in the greater context of their surrounding applications, and we need to
-preserve this information when typechecking the largeer expression.
-
-Argument stack?
-The typechecking process keeps track of an argument stack.  Each application
-pushes its argument on to the stack, and each function pops an argument off
-the stack.  This is another consequence of the weirdness of typechecking
-without Hindley-Milner.
--}
-typecheck : CheckEnv -> CheckStack -> Term -> CheckTree
-typecheck env argStack t =
-  case t of
-    CTerm c ->
-      case c of
-        CInt _  -> singletonTree t (Checks TInt)
-        CBool _ -> singletonTree t (Checks TBool)
-
-    BinTerm op t1 t2 ->
-      let
-        type1 = typecheck env argStack t1
-        type2 = typecheck env argStack t2
-      in
-        andThenTree2 (\ty1 ty2 -> checkBinOp env op ty1 ty2) t type1 type2
-    
-    VTerm v ->
-      case Dict.get v env of
-        Just sub -> singletonTree t sub
-        Nothing  -> singletonTree t Invalid
-    
-    Lam name body ->
-      let
-        argTree = 
-          case Stack.peek argStack of
-            Just sub -> sub
-            Nothing  -> singletonTree (VTerm name) Invalid
-        outTree = typecheck (Dict.insert name (getCheck argTree) env) (Stack.pop argStack) body
-      in
-        andThenTree2 (\a o -> Checks (TFun a o)) t argTree outTree
-        
-    App fn arg ->
-      let
-        argTree = typecheck env argStack arg
-        fnTree = typecheck env (Stack.push argTree argStack) fn
-      in
-        andThenTree2
-          (\ft at -> case ft of
-            TFun it ot -> Checks ot
-            _          -> Invalid) t fnTree argTree
-
-    Tuple t1 t2 ->
-      andThenTree2 (\c1 c2 -> Checks (TTuple c1 c2)) t (typecheck env argStack t1) (typecheck env argStack t2)
-      
-    _ -> singletonTree t Invalid
-
 
 type alias TSubst = List (String, VType)
 
@@ -262,22 +188,6 @@ getResultType op =
     And -> TBool
     Or -> TBool
 
-check : Term -> (CallTree, Maybe VType)
-check term =
-  let
-    names =
-      List.range 1 1000
-        |> map String.fromInt
-        |> map (\n -> "t" ++ n)
-  
-    tree = typecheck2 Dict.empty term (TVar "t0") names
-  in
-    ( tree
-    , tree 
-      |> getSubs
-      |> Maybe.andThen (\subs -> Just (apply subs (TVar "t0")))
-    )
-
 
 type alias CallNode =
   { env: TypeEnv
@@ -292,11 +202,17 @@ getSubs : CallTree -> Maybe TSubst
 getSubs (Tree t) =
   t.node.subs
 
+finalType : CallTree -> Maybe VType
+finalType (Tree tree) =
+  tree.node.subs |> Maybe.andThen (\s ->
+    Just (apply s (TVar "t0"))
+  )
+
 {-
 implementation of algorithm M
 -}
-typecheck2 : TypeEnv -> Term -> VType -> List String -> CallTree
-typecheck2 env term ty names =
+typecheck : TypeEnv -> Term -> VType -> List String -> CallTree
+typecheck env term ty names =
   let
     (subs, childTrees) =
       case term of
@@ -316,8 +232,8 @@ typecheck2 env term ty names =
             case unify ty resType of
               Just sub ->
                 let 
-                  leftTree = typecheck2 env t1 opType names
-                  rightTree = typecheck2 env t2 opType names
+                  leftTree = typecheck env t1 opType names
+                  rightTree = typecheck env t2 opType names
                 in
                   case (getSubs leftTree, getSubs rightTree) of
                     (Just ls, Just rs) ->
@@ -343,7 +259,7 @@ typecheck2 env term ty names =
             case unify ty (TFun argVar bodyVar) of
               Just sub ->
                 let
-                  fnTree = typecheck2 (applyEnv sub (Dict.insert argName argVar env)) body (apply sub bodyVar) remainder2
+                  fnTree = typecheck (applyEnv sub (Dict.insert argName argVar env)) body (apply sub bodyVar) remainder2
                 in
                   ( fnTree
                     |> getSubs
@@ -359,8 +275,8 @@ typecheck2 env term ty names =
             (inName, fnRemainder) = getNext fnNames
             inVar = TVar inName
 
-            fnTree = typecheck2 env fn (TFun inVar ty) fnRemainder
-            argTree = getSubs fnTree |> Maybe.andThen (\sub -> Just (typecheck2 (applyEnv sub env) arg (apply sub inVar) argNames))
+            fnTree = typecheck env fn (TFun inVar ty) fnRemainder
+            argTree = getSubs fnTree |> Maybe.andThen (\sub -> Just (typecheck (applyEnv sub env) arg (apply sub inVar) argNames))
 
             appSubs = 
               case (getSubs fnTree, argTree |> Maybe.andThen getSubs) of
@@ -514,15 +430,6 @@ unify ty1 ty2 =
     (_, _) ->
       Nothing
 
-{-
-Typechecks a list of terms in the order they appear in, accumulating the
-check environment as it goes.
--}
-typecheckAll : List (String, Term) -> CheckEnv
-typecheckAll ts =
-  List.foldl ( \(name,term) env -> Dict.insert name (getCheck (typecheck env Stack.empty term)) env) 
-    Dict.empty ts
-
 
 indexedFoldl : (Int -> a -> b -> b) -> b -> List a -> b
 indexedFoldl fn first xs =
@@ -545,11 +452,11 @@ renameTVars n ty =
     TTuple ty1 ty2 -> TTuple (renameTVars n ty1) (renameTVars n ty2)
 
 
-typecheckAll2 : List (String, Term) -> TypeEnv
-typecheckAll2 ts =
-  indexedFoldl (\i (varName, term) env ->
+typecheckAll : List (String, Term) -> List CallTree
+typecheckAll ts =
+  indexedFoldl (\i (varName, term) (env, trees) ->
     let
-      tree = typecheck2 env term (TVar "t0") tvarNames
+      tree = typecheck env term (TVar "t0") tvarNames
       ty = case tree of
         Tree t -> t.node.subs |> Maybe.andThen 
           (\s ->
@@ -560,10 +467,11 @@ typecheckAll2 ts =
     in
       case ty of
         Just valid ->
-          Dict.insert varName valid env
+          (Dict.insert varName valid env, trees ++ [tree])
         
         Nothing ->
-          env
+          (env, trees ++ [tree])
 
-  ) Dict.empty ts
+  ) (Dict.empty, []) ts
+    |> Tuple.second
 
