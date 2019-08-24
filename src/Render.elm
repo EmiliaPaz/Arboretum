@@ -63,7 +63,6 @@ renderTermInline result t =
       case t of
         CTerm _   -> False
         VTerm _   -> False
-        EmptyTree -> False
         Tuple _ _ -> False
         _         -> True
     opStr =
@@ -109,7 +108,6 @@ listSubterms t =
     Lam x y     -> [VTerm ("\\" ++ x), y]
     App x y     -> [x, y]
     Tuple x y -> [x, y]
-    _           -> []
 
 intersperse : a -> List a -> List a
 intersperse i xs =
@@ -176,18 +174,18 @@ renderCallTreeDebug (Tree tree) =
 
   in
     div [ class "tree-div" ]
-      ( map renderCallTree tree.children ++
+      ( map renderCallTreeDebug tree.children ++
         [ div [ class "text-div" ]
           [ text (Evaluate.termToString tree.node.term ++ " : " ++ typeToString tree.node.inType ++ ", " ++ subsString)]
         ]
       )
 
-renderCallTree : CallTree -> Html msg
-renderCallTree (Tree tree) =
-  renderCallTreeRec (Tree tree) (Maybe.withDefault [] tree.node.subs)
+renderCallTree : CallTree -> Int -> Html msg
+renderCallTree (Tree tree) depth =
+  renderCallTreeRec (Tree tree) (Maybe.withDefault [] tree.node.subs) depth
 
-renderCallTreeRec : CallTree -> TSubst -> Html msg
-renderCallTreeRec (Tree tree) subs =
+renderCallTreeRec : CallTree -> TSubst -> Int -> Html msg
+renderCallTreeRec (Tree tree) subs depth =
   let
     typeString =
       case tree.node.subs of
@@ -199,10 +197,14 @@ renderCallTreeRec (Tree tree) subs =
           "Unification Failed"
 
   in
-    div [ class "tree-div" ]
-      ( map renderCallTree tree.children ++
-        [ div [ class "text-div" ]
-          [ text (Evaluate.termToString tree.node.term ++ " : " ++ typeString) ]
-        ]
-      )
+    if depth > 0 then
+      div [ class "tree-div" ]
+        ( map (\c -> renderCallTreeRec c subs (depth - 1)) tree.children ++
+          [ div [ class "text-div" ]
+            [ text (Evaluate.termToString tree.node.term ++ " : " ++ typeString) ]
+          ]
+        )
+    
+    else
+      div [] []
 

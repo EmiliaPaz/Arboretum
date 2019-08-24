@@ -69,7 +69,7 @@ termToString t =
       "(\\" ++ t1 ++ " -> " ++ (termToString t2) ++ ")"
 
     App t1 t2 ->
-      "(" ++ (termToString t1) ++ (termToString t2) ++ ")"
+      "(" ++ (termToString t1) ++ " " ++ (termToString t2) ++ ")"
     
     Tuple t1 t2 ->
       "(" ++ (termToString t1) ++ "," ++ (termToString t2) ++ ")"

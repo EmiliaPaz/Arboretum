@@ -54,7 +54,7 @@ init _ =
 -- UPDATE
 
 type Msg
-  = Change String | IncDepth Int | DecDepth Int | GotAsts (Result String (List (String, Either Term VType)))
+  = Change String | IncDepth String | DecDepth String | GotAsts (Result String (List (String, Either Term VType)))
 
 
 
@@ -67,25 +67,25 @@ update msg model =
       in
         ({ model | content = newContent }, parseLines lines)
 
-    IncDepth id ->
-      {-let
-        newRTs = filterUpdate (\x -> x.id == id) (\x -> {x | depth = x.depth + 1}) model.renderTreeInfos
+    IncDepth name ->
+      let
+        infos =
+            filterUpdate (\i -> i.name == name) (\i -> {i | depth = i.depth + 1}) model.renderInfos
       in
-        ({model | renderTreeInfos = newRTs} , Cmd.none )-}
-      (model, Cmd.none)
+        ({model | renderInfos = infos} , Cmd.none )
 
-    DecDepth id ->
-      {-let
-        newRTs = filterUpdate (\x -> x.id == id) (\x -> {x | depth = x.depth - 1}) model.renderTreeInfos
+    DecDepth name ->
+      let
+        infos =
+            filterUpdate (\i -> i.name == name) (\i -> {i | depth = i.depth - 1}) model.renderInfos
       in
-        ({model | renderTreeInfos = newRTs} , Cmd.none )-}
-      (model, Cmd.none)
+        ({model | renderInfos = infos} , Cmd.none )
 
     GotAsts r ->
       case r of
         Ok ts ->
           let
-            renderInfos = buildAllRenderInfos (filterTerms ts)
+            renderInfos = buildAllRenderInfos (filterTerms ts) model.renderInfos
           in
             ({ model | renderInfos = renderInfos }
             , Cmd.none)
@@ -368,26 +368,40 @@ type alias RenderInfo =
   , term: Term
   , evaluation: Maybe Val
   , typecheck: CallTree
-  , id: Int }
+  , depth: Int }
 
 
-buildAllRenderInfos : List (String, Term) -> List RenderInfo
-buildAllRenderInfos terms =
+buildAllRenderInfos : List (String, Term) -> List RenderInfo -> List RenderInfo
+buildAllRenderInfos terms infos =
   let
     termEnv = List.foldl (\(name, term) env -> Dict.insert name term env) Dict.empty terms
 
     vals = List.map (\(name, term) -> Evaluate.eval termEnv term) terms
     checks = Typecheck.typecheckAll terms
+
+    findInfo name is =
+      is
+        |> List.filter (\i -> i.name == name)
+        |> List.head
   in
-    List.map3 (\t v c -> (t, v, c)) terms vals checks
-      |> List.indexedMap (\i ((name, term), val, check) ->
+    List.map3 (\(name, term) val check -> 
+      case findInfo name infos of
+        Just info ->
+          { info
+            | term = term
+            , evaluation = val
+            , typecheck = check 
+          }
+        
+        Nothing ->
           { name = name
           , term = term
           , evaluation = val
-          , typecheck = check 
-          , id = i
+          , typecheck = check
+          , depth = 3
           }
-          )
+          ) terms vals checks
+
 
 
 {-buildAllRenderInfos : TermEnv -> TypeEnv -> TypeEnv -> List RenderInfo
@@ -414,15 +428,15 @@ buildRenderInfo val (callTree, result) tree depth id =
 renderWithUI : RenderInfo -> Html Msg
 renderWithUI info =
   div [ class "flex-container" ]
-    [ div [class "tree-container"] [ renderCallTree info.typecheck ]
+    [ div [class "tree-container"] [ renderCallTree info.typecheck info.depth ]
     , div [ class "ui-div" ]
       [ renderSummary info
       , h3 [class "css-title"] [text "Depth:"]
       , div [class "button-container"]
         [ div [ class "buttons" ]
-          [ button [ onClick (DecDepth info.id) ] [ text "-" ]
-          , text ( String.fromInt 0 )
-          , button [ onClick (IncDepth info.id) ] [ text "+" ]
+          [ button [ onClick (DecDepth info.name) ] [ text "-" ]
+          , text ( String.fromInt info.depth )
+          , button [ onClick (IncDepth info.name) ] [ text "+" ]
           ]
         ]
       ]
