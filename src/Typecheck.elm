@@ -523,3 +523,47 @@ typecheckAll ts =
   List.foldl ( \(name,term) env -> Dict.insert name (getCheck (typecheck env Stack.empty term)) env) 
     Dict.empty ts
 
+
+indexedFoldl : (Int -> a -> b -> b) -> b -> List a -> b
+indexedFoldl fn first xs =
+  List.foldl (\val (acc, i) -> (fn i val acc, i + 1)) (first, 0) xs
+    |> Tuple.first
+
+tvarNames =
+  List.range 1 1000
+    |> map String.fromInt
+    |> map (\n -> "t" ++ n)
+
+
+renameTVars : Int -> VType -> VType
+renameTVars n ty =
+  case ty of
+    TInt -> TInt
+    TBool -> TBool
+    TVar name -> TVar (name ++ "." ++ String.fromInt n)
+    TFun ty1 ty2 -> TFun (renameTVars n ty1) (renameTVars n ty2)
+    TTuple ty1 ty2 -> TTuple (renameTVars n ty1) (renameTVars n ty2)
+
+
+typecheckAll2 : List (String, Term) -> TypeEnv
+typecheckAll2 ts =
+  indexedFoldl (\i (varName, term) env ->
+    let
+      tree = typecheck2 env term (TVar "t0") tvarNames
+      ty = case tree of
+        Tree t -> t.node.subs |> Maybe.andThen 
+          (\s ->
+            apply s (TVar "t0")
+              |> renameTVars i 
+              |> Just )
+          
+    in
+      case ty of
+        Just valid ->
+          Dict.insert varName valid env
+        
+        Nothing ->
+          env
+
+  ) Dict.empty ts
+
