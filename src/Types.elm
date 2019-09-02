@@ -24,11 +24,6 @@ type Term = CTerm Const | VTerm String | BinTerm BinOp Term Term | Tuple Term Te
 -}
 type VType = TVar String | TBool | TInt | TFun VType VType | TTuple VType VType
 
-type alias Var =
-  { name: String
-  , term: Term
-  , vtype: VType}
-
 type alias TermEnv = Dict String Term
 type alias TypeEnv = Dict String VType 
 

@@ -209,12 +209,12 @@ finalType (Tree tree) =
   )
 
 
-andThen : (TSubst -> CallTree) -> Maybe CallTree -> Maybe CallTree
+{-andThen : (TSubst -> CallTree) -> Maybe CallTree -> Maybe CallTree
 andThen fn tree =
   case tree of
   case tree.node.subs of
     Just s  -> fn s
-    Nothing -> Nothing
+    Nothing -> Nothing-}
 
 {-
 implementation of algorithm M
@@ -300,7 +300,8 @@ typecheck env term ty names =
           in
             (appSubs, trees)
 
-        Tuple t1 t2 ->
+        _ -> (Nothing, [])
+        {-Tuple t1 t2 ->
           let
             (names1, names2) = split names
             (name1, remainder1) = getNext names1
@@ -331,7 +332,7 @@ typecheck env term ty names =
               Nothing ->
                 (Nothing, [])
 
-          {-let
+          let
             (names1, names2) = split names
             (name1, remainder1) = getNext names1
             (name2, remainder2) = getNext names2
