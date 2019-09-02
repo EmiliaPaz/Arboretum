@@ -69,12 +69,10 @@ termToString t =
       "(\\" ++ t1 ++ " -> " ++ (termToString t2) ++ ")"
 
     App t1 t2 ->
-      "(" ++ (termToString t1) ++ (termToString t2) ++ ")"
+      "(" ++ (termToString t1) ++ " " ++ (termToString t2) ++ ")"
     
     Tuple t1 t2 ->
       "(" ++ (termToString t1) ++ "," ++ (termToString t2) ++ ")"
-
-    _ -> ""
 
 
 tryBinFn : (a -> b -> c) -> Maybe a -> Maybe b -> Maybe c
@@ -192,9 +190,3 @@ eval e t =
         
         _ ->
           Nothing
-    
-    EmptyTree ->
-      Nothing
-    
-    Missing ->
-      Nothing
