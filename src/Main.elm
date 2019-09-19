@@ -15,7 +15,7 @@ import Render exposing (RenderTree, renderCallTree)
 import Stack
 import Tree exposing (Tree)
 import Types exposing (..)
-import Typecheck exposing (CheckTree, CheckResult(..), CheckEnv, TSubst, CallTree, typecheck, typecheckAll, checkResultToString, typeToString, tsubstToString)
+import Typecheck exposing (TSubst, CallTree, typecheck, typecheckAll, typeToString, tsubstToString)
 
 
 -- MAIN
@@ -32,7 +32,6 @@ main =
 type alias Model =
   { content : String
   , terms : TermEnv
-  , checks : CheckEnv
   , annotations : TypeEnv
   , renderInfos : List RenderInfo
   , errorMsg : String
@@ -43,7 +42,6 @@ init : () -> (Model, Cmd Msg)
 init _ =
   ( { content = ""
     , terms = Dict.empty
-    , checks = Dict.empty
     , annotations = Dict.empty
     , renderInfos = []
     , errorMsg = ""
@@ -401,28 +399,6 @@ buildAllRenderInfos terms infos =
           , depth = 3
           }
           ) terms vals checks
-
-
-
-{-buildAllRenderInfos : TermEnv -> TypeEnv -> TypeEnv -> List RenderInfo
-buildAllRenderInfos terms annotations checks =
-  let
-    pairs =
-      terms
-        |> Dict.map (\key term -> (term, ))
-        |> Dict.toList
-        |> map (\(_,snd) -> snd)
-
-  in
-    List.indexedMap (\i (term, checkTree) -> buildRenderInfo (Evaluate.eval terms term) (Typecheck.check term) checkTree 3 i) pairs-}
-
-
-{-buildRenderInfo : Maybe Val -> (CallTree, Maybe VType) -> CheckTree -> Int -> Int -> RenderInfo
-buildRenderInfo val (callTree, result) tree depth id =
-  { renderTree = Render.buildRenderTree tree depth
-  , evaluation = val
-  , typecheck = {tree = callTree, result = result}
-  , id = id }-}
 
 
 renderWithUI : RenderInfo -> Html Msg

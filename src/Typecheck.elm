@@ -1,4 +1,4 @@
-module Typecheck exposing (CheckResult(..), CheckEnv, CheckNode, CheckTree, TSubst, CallTree, typeToString, tsubstToString, checkResultToString, typecheck, typecheckAll, unify, apply, finalType)
+module Typecheck exposing (TSubst, CallTree, typeToString, tsubstToString, typecheck, typecheckAll, unify, apply, finalType)
 
 import List exposing (..)
 import List.Extra exposing (elemIndex, getAt, unique)
@@ -7,7 +7,6 @@ import Dict exposing (Dict)
 import Stack exposing (Stack)
 import Tree exposing (Tree(..))
 import Types exposing (Const(..), BinOp(..), Term(..), VType(..), TermEnv, TypeEnv, listToTypeSign, typeSignToList)
-
 
 
 typeToString : VType -> String
@@ -24,140 +23,6 @@ tsubstToString subst =
   subst
     |> List.map (\(name, sub) -> "(" ++ name ++ ": " ++ typeToString sub ++ ") ")
     |> List.foldr (++) ""
-
-{-
-CheckResult represents the outcome of typechecking a term
-Checks type : The term successfully typechecks to `type`
-Fails argNum expected got output : The terms fails typechecking, where
-  `argNum` was of type `got` instead of `expected`.  The term would have
-  output type `output`, had typechecking succeeded.
-Partial type : At the top level, the term typehcecking was successful with
-  `type`, but an error occured somewhere in the derivation tree
-Invalid : Typechecking failed with no useful diagnostic info
--}
-type CheckResult = Checks VType | Fails Int VType VType VType | Partial VType | Invalid
-
-type alias CheckEnv = Dict String CheckResult
-
-type alias CheckNode =
-  { term: Term
-  , check: CheckResult }
-
-type alias CheckTree = Tree CheckNode
-
-type alias CheckStack = Stack CheckTree
-
-checkResultToString : CheckResult -> String
-checkResultToString r =
-  case r of
-    Checks t ->
-      typeToString t
-
-    Fails argNum exp got out ->
-      "Fails " ++ typeToString out
-
-    Partial t ->
-      "Partial " ++ typeToString t
-
-    Invalid ->
-      "Invalid"
-
-
-{-andThen : (VType -> CheckResult) -> CheckResult -> CheckResult
-andThen fn result =
-  case result of
-    Checks t1 ->
-      fn t1
-    
-    Partial t1 ->
-      case fn t1 of
-        Checks t2 -> Partial t2
-        _         -> fn t1
-    
-    Fails _ _ _ out ->
-      case fn out of
-        Checks t2 -> Partial t2
-        _         -> fn out
-
-    Invalid -> Invalid
-
-
-andThen2 : (VType -> VType -> CheckResult) -> CheckResult -> CheckResult -> CheckResult
-andThen2 fn res1 res2 =
-  case res1 of
-    Checks t1 ->
-      andThen (fn t1) res2
-
-    Partial t1 ->
-      case andThen (fn t1) res2 of
-        Checks t2 -> Partial t2
-        _         -> andThen (fn t1) res2
-
-    Fails _ _ _ out ->
-      case andThen (fn out) res2 of
-        Checks t2 -> Partial t2
-        _         -> andThen (fn out) res2
-    
-    Invalid -> Invalid
-
-andThenTree : (VType -> CheckResult) -> Term -> CheckTree -> CheckTree
-andThenTree fn term tree =
-  let 
-    result = case tree of
-      Tree t -> andThen fn t.node.check
-  in
-    Tree
-      { node =
-        { term = term
-        , check = result }
-      , children = [tree] }
-
-
-andThenTree2 : (VType -> VType -> CheckResult) -> Term -> CheckTree -> CheckTree -> CheckTree
-andThenTree2 fn term tree1 tree2 =
-  let 
-    result = case (tree1, tree2) of
-      (Tree t1, Tree t2) -> andThen2 fn t1.node.check t2.node.check
-  in
-    Tree
-      { node =
-        { term = term
-        , check = result }
-      , children = [tree1, tree2] } -}
-
-
-checkBinOp : CheckEnv -> BinOp -> VType -> VType -> CheckResult
-checkBinOp env op t1 t2 =
-  let
-    operandType =
-      case op of
-        Plus -> TInt
-        Minus -> TInt
-        Times -> TInt
-        Div -> TInt
-        Mod -> TInt
-        Eq -> TInt
-        And -> TBool
-        Or -> TBool
-
-    resultType =
-      case op of
-        Plus -> TInt
-        Minus -> TInt
-        Times -> TInt
-        Div -> TInt
-        Mod -> TInt
-        Eq -> TBool
-        And -> TBool
-        Or -> TBool
-  in
-    if t1 == operandType then
-      if t2 == operandType then
-        Checks resultType
-      else
-        Fails 2 operandType t2 resultType
-    else
-      Fails 1 operandType t1 resultType
 
 
 
@@ -216,20 +81,60 @@ andThen fn tree =
     Just s  -> fn s
     Nothing -> Nothing-}
 
+
+andThen : (Maybe TSubst -> List CallTree -> CallTree) -> (TSubst -> Maybe TSubst) -> CallTree -> CallTree
+andThen treeConstructor fn (Tree tree) =
+  let 
+    newSubs =
+      case tree.node.subs of
+        Just subs ->
+          fn subs
+
+        Nothing -> Nothing
+  in
+    treeConstructor newSubs [Tree tree]
+
+
+andThen2 : (Maybe TSubst -> List CallTree -> CallTree) -> (TSubst -> TSubst -> Maybe TSubst) -> CallTree -> CallTree -> CallTree
+andThen2 treeConstructor fn (Tree tree1) (Tree tree2) =
+  let 
+    newSubs =
+      case (tree1.node.subs, tree2.node.subs) of
+        (Just subs1, Just subs2) ->
+          fn subs1 subs2
+
+        _ -> Nothing
+  in
+    treeConstructor newSubs [Tree tree1, Tree tree2]
+
 {-
 implementation of algorithm M
 -}
 typecheck : TypeEnv -> Term -> VType -> List String -> CallTree
 typecheck env term ty names =
   let
-    (subs, childTrees) =
+    makeTree maybeSubs childTrees2 =
+      Tree 
+        { node = 
+          { env = env
+          , term = term
+          , inType = ty
+          , subs = maybeSubs
+          }
+        , children = childTrees2
+        }
+    
+    andThenIn = andThen makeTree
+    andThenIn2 = andThen2 makeTree
+
+    in
       case term of
         CTerm c ->
           case c of
             CInt _ ->
-              (unify ty TInt, [])
+              makeTree (unify ty TInt) []
             CBool _ ->
-              (unify ty TBool, [])
+              makeTree (unify ty TBool) []
 
         BinTerm op t1 t2 ->
           let
@@ -243,19 +148,20 @@ typecheck env term ty names =
                   leftTree = typecheck env t1 opType names
                   rightTree = typecheck env t2 opType names
                 in
-                  case (getSubs leftTree, getSubs rightTree) of
+                  andThenIn2 (\subs1 subs2 -> Just (sub ++ subs1 ++ subs2)) leftTree rightTree
+                  {-case (getSubs leftTree, getSubs rightTree) of
                     (Just ls, Just rs) ->
                       (Just (sub ++ ls ++ rs), [leftTree, rightTree])
                     _ ->
-                      (Nothing, [leftTree, rightTree])
+                      (Nothing, [leftTree, rightTree])-}
 
               Nothing ->
-                (Nothing, [])
+                makeTree Nothing []
 
         VTerm v ->
           case Dict.get v env of
-            Just vType -> (unify ty vType, [])
-            Nothing    -> (Nothing, [])
+            Just vType -> makeTree (unify ty vType) []
+            Nothing    -> makeTree Nothing []
 
         Lam argName body ->
           let
@@ -269,13 +175,10 @@ typecheck env term ty names =
                 let
                   fnTree = typecheck (applyEnv sub (Dict.insert argName argVar env)) body (apply sub bodyVar) remainder2
                 in
-                  ( fnTree
-                    |> getSubs
-                    |> Maybe.andThen (\fnSubs -> (Just (sub ++ fnSubs)))
-                  , [fnTree])
+                  andThenIn (\fnSubs -> (Just (sub ++ fnSubs))) fnTree
               
               Nothing ->
-                (Nothing, [])
+                makeTree Nothing []
         
         App fn arg ->
           let
@@ -298,9 +201,13 @@ typecheck env term ty names =
               Just t  -> [fnTree, t]
               Nothing -> [fnTree]
           in
-            (appSubs, trees)
+            case argTree of
+              Just aTree ->
+                andThenIn2 (\fnSubs argSubs -> Just (fnSubs ++ argSubs)) fnTree aTree
+              Nothing ->
+                andThenIn (\_ -> Nothing) fnTree
 
-        _ -> (Nothing, [])
+        _ -> makeTree Nothing []
         {-Tuple t1 t2 ->
           let
             (names1, names2) = split names
@@ -347,16 +254,6 @@ typecheck env term ty names =
               )
             )-}
 
-  in
-    Tree 
-      { node = 
-        { env = env
-        , term = term
-        , inType = ty
-        , subs = subs
-        }
-      , children = childTrees
-      }
 
 {-
 Deplorable hack.  Will fix when I get the chance.
