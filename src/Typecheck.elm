@@ -149,11 +149,6 @@ typecheck env term ty names =
                   rightTree = typecheck env t2 opType names
                 in
                   andThenIn2 (\subs1 subs2 -> Just (sub ++ subs1 ++ subs2)) leftTree rightTree
-                  {-case (getSubs leftTree, getSubs rightTree) of
-                    (Just ls, Just rs) ->
-                      (Just (sub ++ ls ++ rs), [leftTree, rightTree])
-                    _ ->
-                      (Nothing, [leftTree, rightTree])-}
 
               Nothing ->
                 makeTree Nothing []
@@ -189,17 +184,6 @@ typecheck env term ty names =
             fnTree = typecheck env fn (TFun inVar ty) fnRemainder
             argTree = getSubs fnTree |> Maybe.andThen (\sub -> Just (typecheck (applyEnv sub env) arg (apply sub inVar) argNames))
 
-            appSubs = 
-              case (getSubs fnTree, argTree |> Maybe.andThen getSubs) of
-                (Just fnSubs, Just argSubs) ->
-                  Just (fnSubs ++ argSubs)
-                
-                _ ->
-                  Nothing
-
-            trees = case argTree of
-              Just t  -> [fnTree, t]
-              Nothing -> [fnTree]
           in
             case argTree of
               Just aTree ->
@@ -207,8 +191,9 @@ typecheck env term ty names =
               Nothing ->
                 andThenIn (\_ -> Nothing) fnTree
 
-        _ -> makeTree Nothing []
-        {-Tuple t1 t2 ->
+
+
+        Tuple t1 t2 ->
           let
             (names1, names2) = split names
             (name1, remainder1) = getNext names1
@@ -219,40 +204,18 @@ typecheck env term ty names =
             case unify ty (TTuple tvar1 tvar2) of
               Just sub ->
                 let 
-                  typecheck (applyEnv sub env) t1 (apply sub tvar1) names1 |> Just |> Maybe.andThen (\sub1 ->
-                    typecheck (applyEnv sub1 (applyEnv sub env)) t1 (apply sub1 (apply sub tvar2)) names2 |> Just |> Maybe.andThen (\sub2 ->
-                  )
+                  tree1 = typecheck (applyEnv sub env) t1 (apply sub tvar1) names1
+                  tree2 = getSubs tree1 |> Maybe.andThen (\sub1 -> Just (typecheck (applyEnv sub1 (applyEnv sub env)) t2 (apply sub1 (apply sub tvar2)) names2))
 
-                  (leftTree, rightTree) = 
-                    typecheck (applyEnv sub env) t1 (apply sub tvar1) names
-                      |> ((Tree lTree) -> lTree.node.subs |> Maybe.andThen (\subs ->
-                            typecheck (applyEnv)
-                         )
-                  rightTree = typecheck env t2 opType names
                 in
-                  case (getSubs leftTree, getSubs rightTree) of
-                    (Just ls, Just rs) ->
-                      (Just (sub ++ ls ++ rs), [leftTree, rightTree])
-                    _ ->
-                      (Nothing, [leftTree, rightTree])
+                  case tree2 of
+                    Just justTree2 ->
+                      andThenIn2 (\sub1 sub2 -> Just (sub ++ sub1 ++ sub2)) tree1 justTree2
+                    Nothing ->
+                      andThenIn (\_ -> Nothing) tree1
 
               Nothing ->
-                (Nothing, [])
-
-          let
-            (names1, names2) = split names
-            (name1, remainder1) = getNext names1
-            (name2, remainder2) = getNext names2
-            tvar1 = TVar name1
-            tvar2 = TVar name2
-          in
-            unify ty (TTuple tvar1 tvar2) |> (\tree ->
-              typecheck (applyEnv sub env) t1 tvar1 names1 |> Maybe.andThen (\sub1 ->
-                typecheck (applyEnv sub1 (applyEnv sub env)) t2 tvar2 names2 |> Maybe.andThen (\sub2 ->
-                  Just (sub ++ sub1 ++ sub2)
-                )
-              )
-            )-}
+                makeTree Nothing []
 
 
 {-
