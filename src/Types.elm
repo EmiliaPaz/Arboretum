@@ -2,20 +2,8 @@ module Types exposing (..)
 
 import Dict exposing (Dict)
 
-type Tree a = Node a (List (Tree a))
-
-type Token = TTSC TokTSC | TokAssign | TokLParen | TokRParen | TokHole |
-              TokVar String | TokHasType | TokConstInt Int | TokConstBool Bool |
-              TokInvalid | TokBackSlash | TokArrow | TokEnd | TokTypeName String
-
-type TokTSC = TTSCInt TokTSCInt | TTSCBool TokTSCBool
-type TokTSCInt = TokPlus | TokMinus | TokTimes
-type TokTSCBool = TokEq | TokAnd | TokOr
-
 type BinOp = Plus | Minus | Times | Div | Mod | Eq | And | Or
-
 type Const = CBool Bool | CInt Int
-
 type Term = CTerm Const | VTerm String | BinTerm BinOp Term Term | Tuple Term Term
             | Lam String Term | App Term Term
 

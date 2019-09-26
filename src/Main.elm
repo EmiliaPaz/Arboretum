@@ -11,7 +11,7 @@ import String exposing (split)
 import Dict exposing (Dict)
 
 import Evaluate exposing (Val)
-import Render exposing (RenderTree, renderCallTree)
+import Render exposing (renderCallTree)
 import Stack
 import Tree exposing (Tree)
 import Types exposing (..)

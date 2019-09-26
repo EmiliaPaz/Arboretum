@@ -1,4 +1,4 @@
-module Render exposing (RenderTree, buildRenderTree, render, renderCallTree)
+module Render exposing (renderCallTree)
 
 import Html exposing (Html, button, div, text, h1, h3, input, span, textarea, br, p)
 import Html.Attributes exposing (..)
@@ -7,10 +7,10 @@ import List exposing (map)
 import Evaluate exposing (Val)
 import Tree exposing (Tree(..))
 import Types exposing (Term(..), BinOp(..))
-import Typecheck exposing (CheckResult(..), CheckTree, CheckNode, CallTree, TSubst, typeToString, checkResultToString, tsubstToString)
+import Typecheck exposing (CallTree, TSubst, typeToString, tsubstToString)
 
 
-type alias RenderTree = Tree RenderNode
+{-type alias RenderTree = Tree RenderNode
 
 type alias RenderNode =
   { render: Bool
@@ -96,7 +96,7 @@ renderTermInline result t =
           _ ->
             text "rendering error"
       False ->
-        text (Evaluate.termToString t)
+        text (Evaluate.termToString t)-}
     
 
 listSubterms : Term -> List Term
@@ -117,7 +117,7 @@ intersperse i xs =
     x :: rem -> [i, x] ++ intersperse i rem
 
 
-renderSubterms : List Term -> CheckResult -> List (Html msg)
+{-renderSubterms : List Term -> CheckResult -> List (Html msg)
 renderSubterms t c =
   let
     subterms = intersperse ( text " " ) ( renderSubtermsRec 1 t c )
@@ -162,7 +162,7 @@ renderErrorDiv c =
       in
         div [class "error-details"] [ text ("Expected: " ++ expStr), br [] [], text ("Got: " ++ gotStr) ]
 
-    _ -> div [class "error-details"] []
+    _ -> div [class "error-details"] []-}
 
 
 renderCallTreeDebug : CallTree -> Html msg
