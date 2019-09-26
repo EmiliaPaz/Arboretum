@@ -74,14 +74,6 @@ finalType (Tree tree) =
   )
 
 
-{-andThen : (TSubst -> CallTree) -> Maybe CallTree -> Maybe CallTree
-andThen fn tree =
-  case tree of
-  case tree.node.subs of
-    Just s  -> fn s
-    Nothing -> Nothing-}
-
-
 andThen : (Maybe TSubst -> List CallTree -> CallTree) -> (TSubst -> Maybe TSubst) -> CallTree -> CallTree
 andThen treeConstructor fn (Tree tree) =
   let 
@@ -190,8 +182,6 @@ typecheck env term ty names =
                 andThenIn2 (\fnSubs argSubs -> Just (fnSubs ++ argSubs)) fnTree aTree
               Nothing ->
                 andThenIn (\_ -> Nothing) fnTree
-
-
 
         Tuple t1 t2 ->
           let
