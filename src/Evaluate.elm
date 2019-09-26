@@ -74,6 +74,9 @@ termToString t =
     Tuple t1 t2 ->
       "(" ++ (termToString t1) ++ "," ++ (termToString t2) ++ ")"
 
+    If cond first second ->
+      "(if " ++ (termToString cond) ++ " then " ++ (termToString first) ++ " else " ++ (termToString second) ++ ")"
+
 
 tryBinFn : (a -> b -> c) -> Maybe a -> Maybe b -> Maybe c
 tryBinFn f mx my =
@@ -190,3 +193,13 @@ eval e t =
         
         _ ->
           Nothing
+    
+    If b x y ->
+      case evale b of
+        Just (VBool True) ->
+          evale x
+
+        Just (VBool False) ->
+          evale y
+
+        _ -> Nothing

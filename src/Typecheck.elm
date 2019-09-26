@@ -99,6 +99,48 @@ andThen2 treeConstructor fn (Tree tree1) (Tree tree2) =
   in
     treeConstructor newSubs [Tree tree1, Tree tree2]
 
+andThen3 : (Maybe TSubst -> List CallTree -> CallTree) -> (TSubst -> TSubst -> TSubst -> Maybe TSubst) -> CallTree -> CallTree -> CallTree -> CallTree
+andThen3 treeConstructor fn (Tree tree1) (Tree tree2) (Tree tree3) =
+  let 
+    newSubs =
+      case (tree1.node.subs, tree2.node.subs, tree3.node.subs) of
+        (Just subs1, Just subs2, Just subs3) ->
+          fn subs1 subs2 subs3
+
+        _ -> Nothing
+  in
+    treeConstructor newSubs [Tree tree1, Tree tree2, Tree tree3]
+
+
+treeAndThen : CallTree -> (TSubst -> (Maybe TSubst, List CallTree)) -> (Maybe TSubst, List CallTree)
+treeAndThen (Tree tree) fn =
+  case tree.node.subs of
+    Just subs ->
+      let
+        (newSubs, trees) = fn subs
+      in
+        (newSubs, [(Tree tree)] ++ trees)
+    
+    _ ->
+      (Nothing, [(Tree tree)])
+
+
+treeChain : (TSubst -> CallTree) -> Maybe CallTree -> Maybe CallTree
+treeChain fn t =
+  case t of
+    Just (Tree tree) ->
+      case tree.node.subs of
+        Just subs ->
+          Just (fn subs)
+    
+        Nothing ->
+          Nothing
+    
+    _ ->
+      Nothing
+
+
+
 {-
 implementation of algorithm M
 -}
@@ -118,6 +160,7 @@ typecheck env term ty names =
     
     andThenIn = andThen makeTree
     andThenIn2 = andThen2 makeTree
+    andThenIn3 = andThen3 makeTree
 
     in
       case term of
@@ -206,6 +249,64 @@ typecheck env term ty names =
 
               Nothing ->
                 makeTree Nothing []
+        
+        If cond t1 t2 ->
+          let
+            (names1, names2) = split names
+            (name, remainder1) = getNext names1
+            remainder2 = names2
+            tvar1 = TVar name
+
+            {-condTree = typecheck env cond TBool names
+            firstTree = treeChain (\subs -> typecheck (applyEnv subs env) t1 (apply subs tvar1) names1) (Just condTree)
+            secondTree = treeChain (\subs -> typecheck (applyEnv subs env) t2 (apply subs tvar2) names2) firstTree
+
+            fsUnion = case (firstTree, secondTree) of
+              (Just (Tree f), Just (Tree s)) ->
+                case (f.node.subs, s.node.subs) of
+                  (Just fSubs, Just sSubs) ->
+                    unify (apply fSubs tvar1) (apply fSubs tvar2)
+                  _ ->
+                    Nothing
+
+              _ -> Nothing
+            
+            finalUnion = case fsUnion of
+              Just u ->
+                unify ty (apply u tvar1)
+              _ ->
+                Nothing-}
+            (newSubs, childTrees) = 
+              treeAndThen (typecheck env cond TBool names) (\condSubs -> 
+                treeAndThen (typecheck (applyEnv condSubs env) t1 (apply condSubs tvar1) remainder1) (\firstSubs ->
+                  treeAndThen (typecheck (applyEnv firstSubs (applyEnv condSubs env)) t2 (apply firstSubs (apply condSubs tvar1)) remainder2) (\secondSubs ->
+                    case unify ty (apply secondSubs (apply firstSubs (apply condSubs tvar1))) of
+                      Just unifySubs ->
+                        (Just (unifySubs ++ secondSubs ++ firstSubs ++ condSubs), [])
+                      
+                      Nothing ->
+                        (Nothing, [])
+                  )
+                )
+              )
+
+          in
+            makeTree newSubs childTrees
+
+
+            {-case (firstTree, secondTree) of
+              (Just fTree, Just sTree) ->
+                andThenIn3
+                  (\condSub sub1 sub2 -> 
+                    case (fsUnion, finalUnion) of
+                      (Just fsSubs, Just fSubs) ->
+                        Just (condSub ++ sub1 ++ sub2 ++ fsSubs ++ fSubs)
+                      _ ->
+                        Nothing) condTree fTree sTree
+              
+              _ ->
+                makeTree Nothing []-}
+
 
 
 {-

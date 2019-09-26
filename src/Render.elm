@@ -99,7 +99,7 @@ renderTermInline result t =
         text (Evaluate.termToString t)-}
     
 
-listSubterms : Term -> List Term
+{-listSubterms : Term -> List Term
 listSubterms t =
   case t of
     CTerm _     -> []
@@ -114,7 +114,7 @@ intersperse i xs =
   case xs of
     [] -> []
     [x] -> [i, x]
-    x :: rem -> [i, x] ++ intersperse i rem
+    x :: rem -> [i, x] ++ intersperse i rem-}
 
 
 {-renderSubterms : List Term -> CheckResult -> List (Html msg)

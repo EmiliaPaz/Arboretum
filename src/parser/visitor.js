@@ -102,12 +102,29 @@ class ToAstVisitor extends BaseScriptVisitor {
     fnExpression(ctx) {
         if(ctx.Lambda) {
             const variable = ctx.Identifier[0].image
-            const body = this.visit(ctx.eqExpression)
+            const body = this.visit(ctx.ifExpression)
 
             return {
                 type: "FN_EXPR",
                 variable: variable,
                 body: body,
+            }
+        }
+        else {
+            return this.visit(ctx.ifExpression)
+        }
+    }
+
+    ifExpression(ctx) {
+        if(ctx.eqExpression.length > 1) {
+            const condition = this.visit(ctx.eqExpression[0])
+            const first = this.visit(ctx.eqExpression[1])
+            const second = this.visit(ctx.eqExpression[2])
+            return {
+                type: "IF_EXPR",
+                condition: condition,
+                first: first,
+                second: second,
             }
         }
         else {

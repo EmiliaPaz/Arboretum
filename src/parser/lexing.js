@@ -18,6 +18,10 @@ const Boolean = createToken({
     pattern: /True|False/,
     longer_alt: Identifier
     })
+    
+const If = createToken({name: "If", pattern: /if/, longer_alt: Identifier})
+const Then = createToken({name: "Then", pattern: /then/, longer_alt: Identifier})
+const Else = createToken({name: "Else", pattern: /else/, longer_alt: Identifier})
 
 const Lambda = createToken({name: "Lambda", pattern: /\\/ })
 const Arrow = createToken({name: "Arrow", pattern: /->/ })
@@ -55,6 +59,9 @@ const Comma = createToken({ name: "Comma", pattern: /,/ })
 const allTokens = [
     WhiteSpace,
     Boolean,
+    If,
+    Then,
+    Else,
     BasicType,
     Identifier,
     Lambda,
